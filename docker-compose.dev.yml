@@ -1,16 +1,14 @@
-version: '3'
-
 services:
   slack-bot:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: slack-bot/Dockerfile
     volumes:
-      - ./src:/app/src:ro  # Mount source code as read-only
-      - ./main.py:/app/main.py:ro
+      - ./slack-bot/src:/app/src:ro  # Mount source code as read-only
+      - ./slack-bot/main.py:/app/main.py:ro
       - ./data:/app/data
     env_file:
-      - .env.dev  # Use development environment variables
+      - .env  # Use development environment variables
     command: python -m src.slack_bot  # Run with module reloading
 
   web-app:
@@ -29,7 +27,7 @@ services:
   api-server:
     build:
       context: .
-      dockerfile: Dockerfile.api.dev  # Use dev-specific Dockerfile
+      dockerfile: movie-club-web/Dockerfile.api.dev  # Use dev-specific Dockerfile
     ports:
       - "3001:3001"
     volumes:

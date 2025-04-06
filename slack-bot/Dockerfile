@@ -3,16 +3,16 @@ FROM python:3.13-slim
 WORKDIR /app
 
 # Copy dependency files
-COPY pyproject.toml .
-COPY uv.lock .
+COPY slack-bot/pyproject.toml .
+COPY slack-bot/uv.lock .
 
 # Install dependencies
 RUN pip install uv && \
     uv pip install -e .
 
 # Copy source code
-COPY src/ src/
-COPY main.py .
+COPY slack-bot/src/ src/
+COPY slack-bot/main.py .
 
 # Create data directory
 RUN mkdir -p /app/data
