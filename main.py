@@ -1,4 +1,7 @@
-from src.tmdb_api import search_movies, get_movie_details, get_popular_movies, save_to_json
+from src.tmdb_api import (
+    search_movies, get_movie_details, get_popular_movies, 
+    save_to_json, get_movie_by_url
+)
 from src.models.movie import Movie
 import json
 
@@ -74,6 +77,25 @@ def show_popular_movies():
         year = movie_data.get('release_date', '')[:4] if movie_data.get('release_date') else 'N/A'
         print(f"{i}. {movie_data['title']} ({year}) - {movie_data['vote_average']}/10")
 
+def get_movie_from_url():
+    """Get a movie from a TMDB URL and display its information."""
+    url = input("\nEnter a TMDB movie URL (e.g., https://www.themoviedb.org/movie/550-fight-club): ")
+    if not url:
+        return
+    
+    print(f"\nFetching movie from URL: {url}")
+    movie_data, error = get_movie_by_url(url)
+    
+    if error:
+        print(f"Error: {error}")
+        return
+    
+    if movie_data:
+        movie = Movie(movie_data)
+        display_movie_info(movie)
+    else:
+        print("Couldn't retrieve movie details.")
+
 def main():
     print("Welcome to Movie Club!")
     print("----------------------")
@@ -82,15 +104,18 @@ def main():
         print("\nOptions:")
         print("1. Search for a movie")
         print("2. Show popular movies")
-        print("3. Exit")
+        print("3. Get movie from TMDB URL")
+        print("4. Exit")
         
-        choice = input("\nEnter your choice (1-3): ")
+        choice = input("\nEnter your choice (1-4): ")
         
         if choice == '1':
             search_and_display()
         elif choice == '2':
             show_popular_movies()
         elif choice == '3':
+            get_movie_from_url()
+        elif choice == '4':
             print("\nThanks for using Movie Club!")
             break
         else:
