@@ -3,11 +3,13 @@ import { Routes, Route } from 'react-router-dom';
 import { Movie, MovieCollection } from './types/movie';
 import MovieGrid from './components/MovieGrid';
 import MovieDetail from './components/MovieDetail';
+import GenreFilter from './components/GenreFilter';
 import { fetchAllMovies } from './services/movieService';
 
 function App() {
   const [movies, setMovies] = useState<MovieCollection>({});
   const [loading, setLoading] = useState<boolean>(true);
+  const [selectedGenres, setSelectedGenres] = useState<number[]>([]);
 
   useEffect(() => {
     const loadMovies = async () => {
@@ -24,6 +26,18 @@ function App() {
     loadMovies();
   }, []);
 
+  const toggleGenre = (genreId: number) => {
+    setSelectedGenres(prev => 
+      prev.includes(genreId) 
+        ? prev.filter(id => id !== genreId) 
+        : [...prev, genreId]
+    );
+  };
+
+  const clearFilters = () => {
+    setSelectedGenres([]);
+  };
+
   if (loading) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -32,7 +46,14 @@ function App() {
     );
   }
 
-  const movieList = Object.values(movies);
+  const allMovies = Object.values(movies);
+  
+  // Filter movies based on selected genres (movie must contain ANY of the selected genres)
+  const filteredMovies = selectedGenres.length > 0
+    ? allMovies.filter(movie => 
+        movie.genres?.some(genre => selectedGenres.includes(genre.id))
+      )
+    : allMovies;
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -46,7 +67,20 @@ function App() {
 
         <main>
           <Routes>
-            <Route path="/" element={<MovieGrid movies={movieList} title="Your Movies" />} />
+            <Route path="/" element={
+              <div className="container mx-auto px-4 py-8">
+                <GenreFilter 
+                  movies={allMovies}
+                  selectedGenres={selectedGenres}
+                  onGenreToggle={toggleGenre}
+                  onClearFilters={clearFilters}
+                />
+                <MovieGrid 
+                  movies={filteredMovies} 
+                  title={`Movies${selectedGenres.length > 0 ? ' (Filtered)' : ''}`} 
+                />
+              </div>
+            } />
             <Route path="/movie/:id" element={<MovieDetail />} />
           </Routes>
         </main>
