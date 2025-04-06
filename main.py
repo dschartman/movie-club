@@ -2,6 +2,7 @@ from src.tmdb_api import (
     search_movies, get_movie_details, get_popular_movies, 
     save_to_json, get_movie_by_url
 )
+from src.slack_bot import start_slack_bot
 from src.models.movie import Movie
 import json
 
@@ -105,9 +106,10 @@ def main():
         print("1. Search for a movie")
         print("2. Show popular movies")
         print("3. Get movie from TMDB URL")
-        print("4. Exit")
+        print("4. Start Slack bot")
+        print("5. Exit")
         
-        choice = input("\nEnter your choice (1-4): ")
+        choice = input("\nEnter your choice (1-5): ")
         
         if choice == '1':
             search_and_display()
@@ -116,6 +118,8 @@ def main():
         elif choice == '3':
             get_movie_from_url()
         elif choice == '4':
+            start_slack_bot()
+        elif choice == '5':
             print("\nThanks for using Movie Club!")
             break
         else:
