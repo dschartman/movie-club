@@ -1,5 +1,5 @@
-from tmdb_api import search_movies, get_movie_details, get_popular_movies
-from models.movie import Movie
+from src.tmdb_api import search_movies, get_movie_details, get_popular_movies
+from src.models.movie import Movie
 import json
 
 def display_movie_info(movie):
