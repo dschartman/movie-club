@@ -11,6 +11,16 @@ export const fetchAllMovies = async (): Promise<MovieCollection> => {
   }
 };
 
+export const fetchMovieById = async (id: number): Promise<Movie | null> => {
+  try {
+    const response = await axios.get(`http://localhost:3001/api/movies/${id}`);
+    return response.data;
+  } catch (error) {
+    console.error(`Error fetching movie ${id}:`, error);
+    return null;
+  }
+};
+
 export const getPosterUrl = (posterPath: string | null, size: string = 'w500'): string => {
   if (!posterPath) return '/placeholder-poster.jpg';
   return `https://image.tmdb.org/t/p/${size}${posterPath}`;

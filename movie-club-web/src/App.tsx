@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { Movie, MovieCollection } from './types/movie';
 import MovieGrid from './components/MovieGrid';
+import MovieDetail from './components/MovieDetail';
 import { fetchAllMovies } from './services/movieService';
 
 function App() {
@@ -46,6 +47,7 @@ function App() {
         <main>
           <Routes>
             <Route path="/" element={<MovieGrid movies={movieList} title="Your Movies" />} />
+            <Route path="/movie/:id" element={<MovieDetail />} />
           </Routes>
         </main>
       </div>
