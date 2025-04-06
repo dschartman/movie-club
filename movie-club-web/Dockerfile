@@ -1,5 +1,5 @@
 # Build stage
-FROM node:18-alpine as build
+FROM node:lts-alpine as build
 
 WORKDIR /app
 
@@ -17,7 +17,7 @@ RUN sed -i 's/<title>React App<\/title>/<title>Movie Club<\/title>/' public/inde
 RUN npm run build
 
 # Production stage
-FROM nginx:alpine
+FROM nginx:stable-alpine
 COPY --from=build /app/build /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
