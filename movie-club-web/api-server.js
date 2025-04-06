@@ -9,15 +9,36 @@ const PORT = process.env.PORT || 3001;
 // Sample movie data - in production, this would come from a database
 let moviesData = {};
 
-// Try to load movie data from a JSON file if it exists
+// Load movie data from individual JSON files in the data directory
 try {
-  const dataPath = path.join(__dirname, 'movie-data.json');
-  if (fs.existsSync(dataPath)) {
-    const rawData = fs.readFileSync(dataPath, 'utf8');
-    moviesData = JSON.parse(rawData);
-    console.log(`Loaded ${Object.keys(moviesData).length} movies from file`);
+  const dataDir = path.join(__dirname, '../data');
+  
+  if (fs.existsSync(dataDir)) {
+    const files = fs.readdirSync(dataDir);
+    const jsonFiles = files.filter(file => file.endsWith('.json'));
+    
+    for (const file of jsonFiles) {
+      try {
+        const filePath = path.join(dataDir, file);
+        const rawData = fs.readFileSync(filePath, 'utf8');
+        const movieData = JSON.parse(rawData);
+        
+        // Extract movie ID from filename (e.g., "123.json" -> "123")
+        const movieId = path.basename(file, '.json');
+        
+        // Store movie by ID
+        if (movieData && movieData.id) {
+          moviesData[movieId] = movieData;
+        }
+      } catch (fileErr) {
+        console.error(`Error loading movie from ${file}:`, fileErr);
+      }
+    }
+    
+    console.log(`Loaded ${Object.keys(moviesData).length} movies from data directory`);
   } else {
-    // Sample data if no file exists
+    console.log("Data directory not found, using sample data");
+    // Use sample data
     moviesData = {
       "1": {
         "id": 1,
@@ -41,55 +62,8 @@ try {
           }
         ],
         "runtime": 142
-      },
-      "2": {
-        "id": 2,
-        "title": "The Godfather",
-        "original_title": "The Godfather",
-        "overview": "Spanning the years 1945 to 1955, a chronicle of the fictional Italian-American Corleone crime family. When organized crime family patriarch, Vito Corleone barely survives an attempt on his life, his youngest son, Michael steps in to take care of the would-be killers, launching a campaign of bloody revenge.",
-        "release_date": "1972-03-14",
-        "poster_path": "/3bhkrj58Vtu7enYsRolD1fZdja1.jpg",
-        "backdrop_path": "/tmU7GeKVybMWFButWEGl2M4GeiP.jpg",
-        "popularity": 86.273,
-        "vote_average": 8.7,
-        "vote_count": 17845,
-        "genres": [
-          {
-            "id": 18,
-            "name": "Drama"
-          },
-          {
-            "id": 80,
-            "name": "Crime"
-          }
-        ],
-        "runtime": 175
-      },
-      "3": {
-        "id": 3,
-        "title": "Pulp Fiction",
-        "original_title": "Pulp Fiction",
-        "overview": "A burger-loving hit man, his philosophical partner, a drug-addled gangster's moll and a washed-up boxer converge in this sprawling, comedic crime caper. Their adventures unfurl in three stories that ingeniously trip back and forth in time.",
-        "release_date": "1994-09-10",
-        "poster_path": "/d5iIlFn5s0ImszYzBPb8JPIfbXD.jpg",
-        "backdrop_path": "/suaEOtk1N1sgg2MTM7oZd2cfVp3.jpg",
-        "popularity": 85.826,
-        "vote_average": 8.5,
-        "vote_count": 25005,
-        "genres": [
-          {
-            "id": 53,
-            "name": "Thriller"
-          },
-          {
-            "id": 80,
-            "name": "Crime"
-          }
-        ],
-        "runtime": 154
       }
     };
-    console.log("Using sample movie data");
   }
 } catch (err) {
   console.error("Error loading movie data:", err);
@@ -100,9 +74,56 @@ try {
 app.use(cors());
 app.use(express.json());
 
+// Function to reload all movie data
+const reloadMovieData = () => {
+  try {
+    const dataDir = path.join(__dirname, '../data');
+    moviesData = {}; // Clear existing data
+    
+    if (fs.existsSync(dataDir)) {
+      const files = fs.readdirSync(dataDir);
+      const jsonFiles = files.filter(file => file.endsWith('.json'));
+      
+      for (const file of jsonFiles) {
+        try {
+          const filePath = path.join(dataDir, file);
+          const rawData = fs.readFileSync(filePath, 'utf8');
+          const movieData = JSON.parse(rawData);
+          
+          // Extract movie ID from filename
+          const movieId = path.basename(file, '.json');
+          
+          if (movieData && movieData.id) {
+            moviesData[movieId] = movieData;
+          }
+        } catch (fileErr) {
+          console.error(`Error loading movie from ${file}:`, fileErr);
+        }
+      }
+      
+      console.log(`Reloaded ${Object.keys(moviesData).length} movies from data directory`);
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.error("Error reloading movie data:", err);
+    return false;
+  }
+};
+
 // Routes
 app.get('/api/movies', (req, res) => {
   res.json(moviesData);
+});
+
+// Endpoint to refresh movie data
+app.post('/api/reload', (req, res) => {
+  const success = reloadMovieData();
+  if (success) {
+    res.json({ success: true, message: `Reloaded ${Object.keys(moviesData).length} movies` });
+  } else {
+    res.status(500).json({ success: false, message: "Failed to reload movie data" });
+  }
 });
 
 app.get('/api/movies/:id', (req, res) => {
