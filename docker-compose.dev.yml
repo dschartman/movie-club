@@ -6,7 +6,7 @@ services:
     volumes:
       - ./slack-bot/src:/app/src:ro  # Mount source code as read-only
       - ./slack-bot/main.py:/app/main.py:ro
-      - ./data:/app/data
+      - ./data:/app/data:rw  # Ensure read-write access
     env_file:
       - .env  # Use development environment variables
     command: python -m src.slack_bot  # Run with module reloading
@@ -31,6 +31,6 @@ services:
     ports:
       - "3001:3001"
     volumes:
-      - ./movie-club-web:/app:ro
-      - ./data:/app/data
+      - ./movie-club-web:/app/movie-club-web:ro  # Mount in a subdirectory to avoid conflicts
+      - ./data:/app/data:rw  # Ensure read-write access
     command: nodemon api-server.js  # Run with hot reloading
