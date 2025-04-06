@@ -60,9 +60,8 @@ def get_movie_by_url(url):
     if not movie_data:
         return None, f"Could not retrieve movie with ID {movie_id}."
     
-    # Save to JSON using the movie ID as filename
-    title = movie_data.get('title', 'movie')
-    filename = f"movie_{movie_id}_{title}.json"
+    # Save to JSON using just the movie ID as filename
+    filename = f"{movie_id}.json"
     save_to_json(movie_data, filename)
     
     return movie_data, None
