@@ -14,9 +14,13 @@ RUN pip install --no-cache-dir pytest python-dotenv requests slack-bolt
 # Copy source code
 COPY slack-bot/src/ src/
 COPY slack-bot/main.py .
+COPY slack-bot/docker_entrypoint.py .
 
 # Set environment variable for Python to run unbuffered
 ENV PYTHONUNBUFFERED=1
 
-# Run the bot using the proper module syntax
-CMD ["python", "-m", "src.slack_bot"]
+# Make the entrypoint script executable
+RUN chmod +x docker_entrypoint.py
+
+# Run the bot using our custom entrypoint script
+CMD ["python", "docker_entrypoint.py"]

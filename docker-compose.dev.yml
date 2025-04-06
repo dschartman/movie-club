@@ -6,10 +6,11 @@ services:
     volumes:
       - ./slack-bot/src:/app/src:ro  # Mount source code as read-only
       - ./slack-bot/main.py:/app/main.py:ro
+      - ./slack-bot/docker_entrypoint.py:/app/docker_entrypoint.py:ro
       - ./data:/app/data:rw  # Ensure read-write access
     env_file:
       - .env  # Use development environment variables
-    command: python -m src.slack_bot  # Run with module reloading
+    command: python docker_entrypoint.py  # Use our custom entrypoint
 
   web-app:
     build:
