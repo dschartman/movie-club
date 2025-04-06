@@ -4,6 +4,7 @@ import { Movie, MovieCollection } from './types/movie';
 import MovieGrid from './components/MovieGrid';
 import MovieDetail from './components/MovieDetail';
 import GenreFilter from './components/GenreFilter';
+import RandomMoviePicker from './components/RandomMoviePicker';
 import { fetchAllMovies } from './services/movieService';
 
 function App() {
@@ -69,13 +70,16 @@ function App() {
           <Routes>
             <Route path="/" element={
               <div className="container mx-auto px-4 py-8">
-                <GenreFilter 
-                  availableMovies={allMovies}
-                  filteredMovies={filteredMovies}
-                  selectedGenres={selectedGenres}
-                  onGenreToggle={toggleGenre}
-                  onClearFilters={clearFilters}
-                />
+                <div className="flex flex-col md:flex-row md:justify-between md:items-start gap-4">
+                  <GenreFilter 
+                    availableMovies={allMovies}
+                    filteredMovies={filteredMovies}
+                    selectedGenres={selectedGenres}
+                    onGenreToggle={toggleGenre}
+                    onClearFilters={clearFilters}
+                  />
+                  <RandomMoviePicker movies={filteredMovies} />
+                </div>
                 <MovieGrid 
                   movies={filteredMovies} 
                   title={`Movies${selectedGenres.length > 0 ? ' (Filtered)' : ''}`} 
