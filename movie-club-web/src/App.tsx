@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Movie, MovieCollection } from './types/movie';
 import MovieGrid from './components/MovieGrid';
 import { fetchAllMovies } from './services/movieService';
@@ -34,7 +34,7 @@ function App() {
   const movieList = Object.values(movies);
 
   return (
-    <BrowserRouter>
+    <Router>
       <div className="min-h-screen bg-gray-100">
         <header className="bg-gray-800 text-white shadow-md">
           <div className="container mx-auto px-4 py-4 flex items-center">
@@ -50,7 +50,7 @@ function App() {
           </Routes>
         </main>
       </div>
-    </BrowserRouter>
+    </Router>
   );
 }
 
