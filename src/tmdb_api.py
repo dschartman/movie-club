@@ -1,7 +1,21 @@
 import requests
+import json
+import os
 from src.config import TMDB_API_KEY
 
 BASE_URL = "https://api.themoviedb.org/3"
+
+def save_to_json(data, filename="sample_movie_data.json"):
+    """Save API response data to a JSON file with pretty formatting."""
+    # Create 'data' directory if it doesn't exist
+    os.makedirs("data", exist_ok=True)
+    
+    filepath = os.path.join("data", filename)
+    with open(filepath, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)
+    
+    print(f"Data saved to {filepath}")
+    return filepath
 
 def get_movie_details(movie_id):
     """Fetch detailed information about a specific movie."""

@@ -1,4 +1,4 @@
-from src.tmdb_api import search_movies, get_movie_details, get_popular_movies
+from src.tmdb_api import search_movies, get_movie_details, get_popular_movies, save_to_json
 from src.models.movie import Movie
 import json
 
@@ -63,6 +63,9 @@ def show_popular_movies():
     if not popular or 'results' not in popular or not popular['results']:
         print("Couldn't retrieve popular movies.")
         return
+    
+    # Save the API response to a JSON file
+    save_to_json(popular, "popular_movies.json")
     
     movies = popular['results']
     print("\nCurrent Popular Movies:")
