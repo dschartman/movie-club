@@ -34,12 +34,17 @@ app.get('/api/movies', (req, res) => {
   res.json(movies);
 });
 
-// The "catchall" handler: for any request that doesn't
-// match one above, send back React's index.html file.
-app.get('*', (req, res) => {
+// Simple test endpoint
+app.get('/api/test', (req, res) => {
+  res.json({ message: 'API is working!' });
+});
+
+// Fixed the catchall handler by removing problematic paths
+app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'movie-club-web/build/index.html'));
 });
 
 app.listen(PORT, () => {
   console.log(`Server listening on port ${PORT}`);
+  console.log(`API available at http://localhost:${PORT}/api/movies`);
 });
