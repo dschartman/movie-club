@@ -19,10 +19,14 @@ services:
     ports:
       - "3000:3000"  # React's default dev port
     volumes:
-      - ./movie-club-web/src:/app/src:ro
-      - ./movie-club-web/public:/app/public:ro
+      - ./movie-club-web/src:/app/src:delegated
+      - ./movie-club-web/public:/app/public:delegated
+      - ./movie-club-web/package.json:/app/package.json:ro
+      - ./movie-club-web/tsconfig.json:/app/tsconfig.json:ro
     environment:
       - REACT_APP_API_URL=http://localhost:3001
+      - CI=false  # Prevents treating warnings as errors
+      - CHOKIDAR_USEPOLLING=true
     command: npm start  # Run with hot reloading
 
   api-server:

@@ -7,8 +7,15 @@ COPY package*.json ./
 RUN npm ci
 
 # Don't copy source code - it will be mounted
+# But ensure directory structure exists
+RUN mkdir -p src public
 
 EXPOSE 3000
+
+# Set environment variables
+ENV CI=false
+ENV CHOKIDAR_USEPOLLING=true
+ENV WDS_SOCKET_PORT=3000
 
 # Default command runs development server
 CMD ["npm", "start"]
