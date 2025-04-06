@@ -70,7 +70,8 @@ function App() {
             <Route path="/" element={
               <div className="container mx-auto px-4 py-8">
                 <GenreFilter 
-                  movies={allMovies}
+                  availableMovies={allMovies}
+                  filteredMovies={filteredMovies}
                   selectedGenres={selectedGenres}
                   onGenreToggle={toggleGenre}
                   onClearFilters={clearFilters}

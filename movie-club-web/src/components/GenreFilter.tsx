@@ -8,14 +8,16 @@ interface Genre {
 }
 
 interface GenreFilterProps {
-  movies: Movie[];
+  availableMovies: Movie[];
+  filteredMovies: Movie[];
   selectedGenres: number[];
   onGenreToggle: (genreId: number) => void;
   onClearFilters: () => void;
 }
 
 const GenreFilter: React.FC<GenreFilterProps> = ({ 
-  movies, 
+  availableMovies,
+  filteredMovies, 
   selectedGenres, 
   onGenreToggle,
   onClearFilters
@@ -24,7 +26,8 @@ const GenreFilter: React.FC<GenreFilterProps> = ({
   const allGenres: Genre[] = React.useMemo(() => {
     const genreMap = new Map<number, Genre>();
     
-    movies.forEach(movie => {
+    // First pass: count all genres from available movies
+    availableMovies.forEach(movie => {
       if (movie.genres) {
         movie.genres.forEach(genre => {
           if (!genreMap.has(genre.id)) {
@@ -37,9 +40,21 @@ const GenreFilter: React.FC<GenreFilterProps> = ({
       }
     });
     
+    // Create a set of genre IDs that exist in the filtered movies
+    const availableGenreIds = new Set<number>();
+    filteredMovies.forEach(movie => {
+      if (movie.genres) {
+        movie.genres.forEach(genre => {
+          availableGenreIds.add(genre.id);
+        });
+      }
+    });
+
+    // Only return genres that exist in the filtered movies or are already selected
     return Array.from(genreMap.values())
+      .filter(genre => availableGenreIds.has(genre.id) || selectedGenres.includes(genre.id))
       .sort((a, b) => a.name.localeCompare(b.name));
-  }, [movies]);
+  }, [availableMovies, filteredMovies, selectedGenres]);
 
   return (
     <div className="mb-6">
