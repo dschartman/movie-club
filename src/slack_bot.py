@@ -39,12 +39,10 @@ def process_tmdb_url(url):
     """Process a TMDB URL to fetch and save movie data."""
     movie_id = extract_movie_id_from_url(url)
     if not movie_id:
-        print(f"Could not extract movie ID from URL: {url}")
         return None
     
     movie_data = get_movie_details(movie_id)
     if not movie_data:
-        print(f"Could not retrieve movie with ID {movie_id}")
         return None
     
     # Save to JSON using just the movie ID as filename
@@ -56,32 +54,19 @@ def process_tmdb_url(url):
 @app.event("message")
 def handle_message_events(event, say):
     """Handle message events in the specified channel."""
-    print(f"Received message event: {event}")
     channel_id = event.get("channel")
     text = event.get("text", "")
     
-    print(f"Channel ID from event: {channel_id}")
-    print(f"Expected channel ID: {SLACK_CHANNEL_ID}")
-    print(f"Message text: {text}")
-    
     # Only process messages from the designated channel
     if channel_id != SLACK_CHANNEL_ID:
-        print("Channel ID doesn't match, ignoring message")
         return
     
     # Extract URLs from the message
     urls = re.findall(r'https?://[^\s]+', text)
-    print(f"Found URLs: {urls}")
     
     for url in urls:
         # Check if it's a TMDB URL and hasn't been processed yet
-        if is_tmdb_url(url):
-            print(f"Found TMDB URL: {url}")
-            if url in processed_urls:
-                print(f"URL already processed: {url}")
-                continue
-                
-            print(f"Processing TMDB URL: {url}")
+        if is_tmdb_url(url) and url not in processed_urls:
             movie_data = process_tmdb_url(url)
             
             if movie_data:
@@ -91,8 +76,6 @@ def handle_message_events(event, say):
                 
                 # Acknowledge in the channel that we've added the movie
                 say(f"Added movie: {movie_data.get('title')} (ID: {movie_data.get('id')})")
-            else:
-                print(f"Failed to process movie data for URL: {url}")
 
 def start_slack_bot():
     """Start the Slack bot in Socket Mode."""
