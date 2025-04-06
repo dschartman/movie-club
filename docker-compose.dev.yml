@@ -1,0 +1,38 @@
+version: '3'
+
+services:
+  slack-bot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./src:/app/src:ro  # Mount source code as read-only
+      - ./main.py:/app/main.py:ro
+      - ./data:/app/data
+    env_file:
+      - .env.dev  # Use development environment variables
+    command: python -m src.slack_bot  # Run with module reloading
+
+  web-app:
+    build:
+      context: ./movie-club-web
+      dockerfile: Dockerfile.dev  # Use dev-specific Dockerfile
+    ports:
+      - "3000:3000"  # React's default dev port
+    volumes:
+      - ./movie-club-web/src:/app/src:ro
+      - ./movie-club-web/public:/app/public:ro
+    environment:
+      - REACT_APP_API_URL=http://localhost:3001
+    command: npm start  # Run with hot reloading
+
+  api-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.api.dev  # Use dev-specific Dockerfile
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./movie-club-web:/app:ro
+      - ./data:/app/data
+    command: nodemon api-server.js  # Run with hot reloading

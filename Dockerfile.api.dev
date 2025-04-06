@@ -1,0 +1,15 @@
+FROM node:18-alpine
+
+WORKDIR /app
+
+# Copy package files
+COPY movie-club-web/package*.json ./
+RUN npm ci
+RUN npm install -g nodemon
+
+# Don't copy source code - it will be mounted
+
+EXPOSE 3001
+
+# Default command with hot reloading
+CMD ["nodemon", "api-server.js"]
