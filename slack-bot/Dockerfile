@@ -1,5 +1,4 @@
 FROM python:3.11-slim
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /app
 
@@ -8,9 +7,9 @@ RUN mkdir -p /app/data
 
 # Copy dependency files
 COPY slack-bot/pyproject.toml .
-COPY slack-bot/uv.lock .
 
-RUN uv sync
+# Install dependencies directly with pip
+RUN pip install --no-cache-dir pytest python-dotenv requests slack-bolt
 
 # Copy source code
 COPY slack-bot/src/ src/
