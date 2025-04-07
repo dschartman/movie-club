@@ -1,19 +1,23 @@
 import axios from 'axios';
 import { Movie, MovieCollection } from '../types/movie';
 
+// Use environment variable or default to current origin
+const API_BASE_URL = process.env.REACT_APP_API_URL || '';
+
 export const fetchAllMovies = async (): Promise<MovieCollection> => {
   try {
-    const response = await axios.get('http://localhost:3001/api/movies');
+    const response = await axios.get(`${API_BASE_URL}/movies`);
     return response.data;
   } catch (error) {
     console.error('Error fetching movies:', error);
+    console.log('API_BASE_URL:', API_BASE_URL);
     return {};
   }
 };
 
 export const fetchMovieById = async (id: number): Promise<Movie | null> => {
   try {
-    const response = await axios.get(`http://localhost:3001/api/movies/${id}`);
+    const response = await axios.get(`${API_BASE_URL}/movies/${id}`);
     return response.data;
   } catch (error) {
     console.error(`Error fetching movie ${id}:`, error);
