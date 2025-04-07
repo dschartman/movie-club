@@ -52,7 +52,7 @@ def process_tmdb_url(url):
     return movie_data
 
 @app.event("message")
-def handle_message_events(event, say):
+def handle_message_events(event, client):
     """Handle message events in the specified channel."""
     channel_id = event.get("channel")
     text = event.get("text", "")
@@ -74,8 +74,15 @@ def handle_message_events(event, say):
                 processed_urls.add(url)
                 save_processed_url(url)
                 
-                # Acknowledge in the channel that we've added the movie
-                say(f"Added movie: {movie_data.get('title')} (ID: {movie_data.get('id')})")
+                # Add a reaction to the message instead of replying
+                try:
+                    client.reactions_add(
+                        channel=channel_id,
+                        timestamp=event.get("ts"),
+                        name="movie_camera"  # Movie camera emoji
+                    )
+                except Exception as e:
+                    print(f"Error adding reaction: {e}")
 
 def start_slack_bot():
     """Start the Slack bot in Socket Mode."""
