@@ -1,3 +1,3 @@
 window.MOVIE_CLUB_CONFIG = {
-  API_URL: '/api'
+  API_URL: window.location.origin + '/api'
 };

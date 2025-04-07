@@ -21,8 +21,8 @@ FROM nginx:stable-alpine
 COPY --from=build /app/build /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# This creates a runtime configurable file (will overwrite the one from build)
-RUN echo 'window.MOVIE_CLUB_CONFIG = { API_URL: "/api" };' > /usr/share/nginx/html/config.js
+# Create a more robust runtime config that uses the current origin
+RUN echo 'window.MOVIE_CLUB_CONFIG = { API_URL: window.location.origin + "/api" };' > /usr/share/nginx/html/config.js
 
 EXPOSE 80
 

@@ -1,12 +1,26 @@
 import axios from 'axios';
 import { Movie, MovieCollection } from '../types/movie';
 
-// Use runtime config or fall back to environment variable or default to relative path
-const API_BASE_URL = (window as any).MOVIE_CLUB_CONFIG?.API_URL || process.env.REACT_APP_API_URL || '/api';
+// Use runtime config or fall back to environment variable or default to using current origin
+const getApiBaseUrl = () => {
+  const configUrl = (window as any).MOVIE_CLUB_CONFIG?.API_URL;
+  const envUrl = process.env.REACT_APP_API_URL;
+  const defaultUrl = window.location.origin + '/api';
+  
+  console.log('Config API URL:', configUrl);
+  console.log('Env API URL:', envUrl);
+  console.log('Default URL:', defaultUrl);
+  
+  return configUrl || envUrl || defaultUrl;
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export const fetchAllMovies = async (): Promise<MovieCollection> => {
   try {
-    const response = await axios.get(`${API_BASE_URL}/movies`);
+    const url = `${API_BASE_URL}/movies`;
+    console.log('Fetching movies from:', url);
+    const response = await axios.get(url);
     return response.data;
   } catch (error) {
     console.error('Error fetching movies:', error);
