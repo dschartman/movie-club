@@ -2,19 +2,21 @@ FROM node:lts-alpine
 
 WORKDIR /app
 
-# Create data directory structure
-RUN mkdir -p /app/data && chmod 777 /app/data
+# Create the directory structure to match development
+RUN mkdir -p /app/movie-club-web /app/data && chmod 777 /app/data
 
-# Copy package files
-COPY movie-club-web/package*.json ./
+# Copy package files to the correct location
+COPY movie-club-web/package*.json ./movie-club-web/
+WORKDIR /app/movie-club-web
 RUN npm ci --only=production
 
-# Copy API server code
-COPY movie-club-web/api-server.js .
+# Copy API server code to the correct location
+COPY movie-club-web/api-server.js ./
+
+# Return to app directory
+WORKDIR /app
 
 EXPOSE 3001
 
-# Make sure the API server can find the data directory
-ENV NODE_PATH=/app
-
-CMD ["node", "api-server.js"]
+# Run the API server like in development (without nodemon)
+CMD ["node", "movie-club-web/api-server.js"]
