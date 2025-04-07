@@ -10,8 +10,8 @@ RUN npm ci
 # Copy source code
 COPY . .
 
-# Change the title in index.html before building
-RUN sed -i 's/<title>React App<\/title>/<title>Movie Club<\/title>/' public/index.html
+# Set the API URL to use the nginx proxy
+ENV REACT_APP_API_URL=/api
 
 # Build the app for production
 RUN npm run build
