@@ -65,24 +65,35 @@ def handle_message_events(event, client):
     urls = re.findall(r'https?://[^\s]+', text)
     
     for url in urls:
-        # Check if it's a TMDB URL and hasn't been processed yet
-        if is_tmdb_url(url) and url not in processed_urls:
-            movie_data = process_tmdb_url(url)
-            
-            if movie_data:
-                # Add to processed set and save to file
-                processed_urls.add(url)
-                save_processed_url(url)
+        if is_tmdb_url(url):
+            # Check if it hasn't been processed yet
+            if url not in processed_urls:
+                movie_data = process_tmdb_url(url)
                 
-                # Add a reaction to the message instead of replying
-                try:
-                    client.reactions_add(
-                        channel=channel_id,
-                        timestamp=event.get("ts"),
-                        name="movie_camera"  # Movie camera emoji
-                    )
-                except Exception as e:
-                    print(f"Error adding reaction: {e}")
+                if movie_data:
+                    # Add to processed set and save to file
+                    processed_urls.add(url)
+                    save_processed_url(url)
+                    
+                    # Add a movie camera reaction
+                    try:
+                        client.reactions_add(
+                            channel=channel_id,
+                            timestamp=event.get("ts"),
+                            name="movie_camera"  # Movie camera emoji
+                        )
+                    except Exception as e:
+                        print(f"Error adding movie reaction: {e}")
+        else:
+            # Not a TMDB URL, add middle finger reaction
+            try:
+                client.reactions_add(
+                    channel=channel_id,
+                    timestamp=event.get("ts"),
+                    name="middle_finger"  # Middle finger emoji
+                )
+            except Exception as e:
+                print(f"Error adding middle finger reaction: {e}")
 
 def start_slack_bot():
     """Start the Slack bot in Socket Mode."""
