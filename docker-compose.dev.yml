@@ -1,0 +1,44 @@
+services:
+  slack-bot:
+    build:
+      context: .
+      dockerfile: slack-bot/Dockerfile
+    volumes:
+      - ./slack-bot/src:/app/src:ro  # Mount source code as read-only
+      - ./slack-bot/main.py:/app/main.py:ro
+      - ./slack-bot/docker_entrypoint.py:/app/docker_entrypoint.py:ro
+      - ./data:/app/data:rw  # Ensure read-write access
+    env_file:
+      - .env  # Use development environment variables
+    command: python docker_entrypoint.py  # Use our custom entrypoint
+
+  web-app:
+    build:
+      context: ./movie-club-web
+      dockerfile: Dockerfile.dev  # Use dev-specific Dockerfile
+    ports:
+      - "3000:3000"  # React's default dev port
+    volumes:
+      - ./movie-club-web/src:/app/src:delegated
+      - ./movie-club-web/public:/app/public:delegated
+      - ./movie-club-web/package.json:/app/package.json:ro
+      - ./movie-club-web/tsconfig.json:/app/tsconfig.json:ro
+      - ./movie-club-web/tailwind.config.js:/app/tailwind.config.js:ro
+      - ./movie-club-web/postcss.config.js:/app/postcss.config.js:ro
+      - ./movie-club-web/node_modules:/app/node_modules
+    environment:
+      - REACT_APP_API_URL=http://localhost:3001
+      - CI=false  # Prevents treating warnings as errors
+      - CHOKIDAR_USEPOLLING=true
+    command: npm start  # Run with hot reloading
+
+  api-server:
+    build:
+      context: .
+      dockerfile: movie-club-web/Dockerfile.api.dev  # Use dev-specific Dockerfile
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./movie-club-web:/app/movie-club-web:ro  # Mount in a subdirectory to avoid conflicts
+      - ./data:/app/data:rw  # Ensure read-write access
+    command: nodemon movie-club-web/api-server.js  # Use correct path to api-server.js

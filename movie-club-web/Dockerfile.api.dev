@@ -1,0 +1,22 @@
+FROM node:lts-alpine
+
+WORKDIR /app
+
+# Create data directory with proper permissions
+RUN mkdir -p /app/data && chmod 777 /app/data
+
+# Copy package files
+COPY movie-club-web/package*.json ./movie-club-web/
+WORKDIR /app/movie-club-web
+RUN npm ci
+RUN npm install -g nodemon
+
+# Return to app directory
+WORKDIR /app
+
+# Don't copy source code - it will be mounted
+
+EXPOSE 3001
+
+# Default command with hot reloading
+CMD ["nodemon", "movie-club-web/api-server.js"]

@@ -1,0 +1,45 @@
+services:
+  slack-bot:
+    build:
+      context: .
+      dockerfile: slack-bot/Dockerfile
+    restart: unless-stopped
+    volumes:
+      - ./data:/app/data
+      - ./movie-club-web/public:/app/public
+    env_file:
+      - .env
+    depends_on:
+      - api-server
+
+  web-app:
+    build:
+      context: ./movie-club-web
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    depends_on:
+      - api-server
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  api-server:
+    build:
+      context: .
+      dockerfile: movie-club-web/Dockerfile.api
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PORT=3001
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/movies"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
