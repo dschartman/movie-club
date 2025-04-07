@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { Movie, MovieCollection } from '../types/movie';
 
-// Use environment variable or default to current origin
-const API_BASE_URL = process.env.REACT_APP_API_URL || '';
+// Use runtime config or fall back to environment variable or default to relative path
+const API_BASE_URL = (window as any).MOVIE_CLUB_CONFIG?.API_URL || process.env.REACT_APP_API_URL || '/api';
 
 export const fetchAllMovies = async (): Promise<MovieCollection> => {
   try {
