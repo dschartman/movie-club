@@ -24,16 +24,34 @@ def get_user_names(client, user_ids):
     user_names = []
     for user_id in user_ids:
         try:
+            # Get user information from Slack
             user_info = client.users_info(user=user_id)
-            display_name = user_info["user"].get("profile", {}).get("display_name")
-            if not display_name:
-                display_name = user_info["user"].get("real_name")
-            if not display_name:
-                display_name = user_info["user"].get("name")  # Fallback to username
+            
+            # Debug the response if needed
+            if os.getenv("DEBUG_SLACK_API"):
+                print(f"User info for {user_id}: {json.dumps(user_info, indent=2)}")
+            
+            # Try different fields in order of preference
+            user_data = user_info.get("user", {})
+            profile = user_data.get("profile", {})
+            
+            # Try several name options in order of preference
+            display_name = profile.get("display_name_normalized") or profile.get("display_name")
+            if not display_name or display_name == "":
+                display_name = user_data.get("real_name") or profile.get("real_name")
+            if not display_name or display_name == "":
+                display_name = user_data.get("name")  # Fallback to username
+            
+            # If still nothing, use a better formatted fallback
+            if not display_name or display_name == "":
+                display_name = f"@{user_id.replace('U', '')}"
+                
             user_names.append(display_name)
+            
         except Exception as e:
-            print(f"Error getting user info: {e}")
-            user_names.append(f"User {user_id}")  # Fallback if we can't get user info
+            print(f"Error getting user info for {user_id}: {str(e)}")
+            # Use a more friendly fallback
+            user_names.append(f"@unknown-user")
     
     return user_names
 

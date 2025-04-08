@@ -14,3 +14,4 @@ SLACK_CHANNEL_ID = os.getenv("SLACK_CHANNEL_ID")  # Channel to monitor
 
 # Application Configuration
 DEBUG = True
+DEBUG_SLACK_API = os.getenv("DEBUG_SLACK_API", "").lower() in ("true", "1", "t", "yes")
