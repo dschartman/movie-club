@@ -7,12 +7,35 @@ from slack_bolt.adapter.socket_mode import SocketModeHandler
 from src.config import SLACK_BOT_TOKEN, SLACK_APP_TOKEN, SLACK_CHANNEL_ID
 from src.tmdb_api import extract_movie_id_from_url, get_movie_details, save_to_json
 from src.models.movie import Movie
+from src.models.movie_tracking import MovieTracker
 
 # Initialize Slack Bolt app
 app = App(token=SLACK_BOT_TOKEN)
 
 # Set to keep track of processed URLs to avoid duplicates
 processed_urls = set()
+
+# Initialize movie tracker
+movie_tracker = MovieTracker()
+
+# Function to get user names from IDs
+def get_user_names(client, user_ids):
+    """Convert user IDs to display names."""
+    user_names = []
+    for user_id in user_ids:
+        try:
+            user_info = client.users_info(user=user_id)
+            display_name = user_info["user"].get("profile", {}).get("display_name")
+            if not display_name:
+                display_name = user_info["user"].get("real_name")
+            if not display_name:
+                display_name = user_info["user"].get("name")  # Fallback to username
+            user_names.append(display_name)
+        except Exception as e:
+            print(f"Error getting user info: {e}")
+            user_names.append(f"User {user_id}")  # Fallback if we can't get user info
+    
+    return user_names
 
 # Function to get all movie data files
 def get_all_movies():
@@ -24,7 +47,7 @@ def get_all_movies():
         return []
     
     for filename in os.listdir(data_dir):
-        if filename.endswith('.json') and filename != 'popular_movies.json':
+        if filename.endswith('.json') and filename != 'popular_movies.json' and filename != 'movie_users.json':
             try:
                 # Skip processing URLs file
                 if filename == 'processed_urls.txt':
@@ -40,7 +63,7 @@ def get_all_movies():
     
     return movies
 
-def format_movie_list(movies):
+def format_movie_list(movies, client=None):
     """Format movie list for slack display."""
     if not movies:
         return "No movies found in the database."
@@ -51,7 +74,16 @@ def format_movie_list(movies):
     for i, movie in enumerate(movies, 1):
         year = movie.release_date[:4] if movie.release_date else "N/A"
         rating = f"{movie.vote_average}/10" if movie.vote_average else "N/A"
-        movie_lines.append(f"{i}. *{movie.title}* ({year}) - {rating}")
+        line = f"{i}. *{movie.title}* ({year}) - {rating}"
+        
+        # Get the users who added this movie if client is provided
+        if client:
+            user_ids = movie_tracker.get_movie_users(movie.id)
+            if user_ids:
+                user_names = get_user_names(client, user_ids)
+                line += f" - Added by: {', '.join(user_names)}"
+        
+        movie_lines.append(line)
     
     return "\n".join(movie_lines)
 
@@ -63,7 +95,7 @@ def get_random_movie():
     
     return random.choice(movies)
 
-def format_movie_detail(movie):
+def format_movie_detail(movie, client=None):
     """Format a single movie for detailed slack display."""
     blocks = [
         {
@@ -101,6 +133,21 @@ def format_movie_detail(movie):
             ]
         })
     
+    # Add users who added this movie if client is provided
+    if client:
+        user_ids = movie_tracker.get_movie_users(movie.id)
+        if user_ids:
+            user_names = get_user_names(client, user_ids)
+            blocks.append({
+                "type": "section",
+                "fields": [
+                    {
+                        "type": "mrkdwn",
+                        "text": f"*Added by:* {', '.join(user_names)}"
+                    }
+                ]
+            })
+    
     # Add overview if available
     if movie.overview:
         blocks.append({
@@ -134,13 +181,13 @@ def format_movie_detail(movie):
 
 # Add command handlers
 @app.command("/movies")
-def list_movies(ack, respond):
+def list_movies(ack, respond, command):
     """Handle /movies command to list all movies."""
     # Acknowledge command request
     ack()
     
     movies = get_all_movies()
-    movie_list = format_movie_list(movies)
+    movie_list = format_movie_list(movies, app.client)
     
     respond({
         "blocks": [
@@ -162,7 +209,7 @@ def list_movies(ack, respond):
     })
 
 @app.command("/random")
-def random_movie(ack, respond):
+def random_movie(ack, respond, command):
     """Handle /random command to pick a random movie."""
     # Acknowledge command request
     ack()
@@ -173,7 +220,7 @@ def random_movie(ack, respond):
         respond("No movies found in the database.")
         return
     
-    blocks = format_movie_detail(movie)
+    blocks = format_movie_detail(movie, app.client)
     respond({
         "blocks": blocks
     })
@@ -202,7 +249,7 @@ def save_processed_url(url):
     except Exception as e:
         print(f"Error saving processed URL: {e}")
 
-def process_tmdb_url(url):
+def process_tmdb_url(url, user_id=None):
     """Process a TMDB URL to fetch and save movie data."""
     movie_id = extract_movie_id_from_url(url)
     if not movie_id:
@@ -216,6 +263,10 @@ def process_tmdb_url(url):
     filename = f"{movie_id}.json"
     save_to_json(movie_data, filename)
     
+    # Track the user who added this movie if user_id is provided
+    if user_id:
+        movie_tracker.add_user_to_movie(movie_id, user_id)
+    
     return movie_data
 
 @app.event("message")
@@ -223,6 +274,7 @@ def handle_message_events(event, client):
     """Handle message events in the specified channel."""
     channel_id = event.get("channel")
     text = event.get("text", "")
+    user_id = event.get("user")  # Get the user who posted the message
     
     # Only process messages from the designated channel
     if channel_id != SLACK_CHANNEL_ID:
@@ -235,7 +287,7 @@ def handle_message_events(event, client):
         if is_tmdb_url(url):
             # Check if it hasn't been processed yet
             if url not in processed_urls:
-                movie_data = process_tmdb_url(url)
+                movie_data = process_tmdb_url(url, user_id)  # Pass the user_id
                 
                 if movie_data:
                     # Add to processed set and save to file
