@@ -30,7 +30,7 @@ def get_user_names(client, user_ids):
 
             # Debug the response if needed
             if os.getenv("DEBUG_SLACK_API"):
-                print(f"User info for {user_id}: {json.dumps(user_info, indent=2)}")
+                print(f"User info for {user_id}: {user_info.data}")
 
             # Try different fields in order of preference
             user_data = user_info.get("user", {})
