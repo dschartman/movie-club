@@ -1,7 +1,7 @@
 [project]
 name = "movie-club"
 version = "0.1.0"
-description = "Add your description here"
+description = "Movie Club Slack Bot for managing and discussing movies"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
@@ -9,4 +9,12 @@ dependencies = [
     "python-dotenv>=1.1.0",
     "requests>=2.32.3",
     "slack-bolt>=1.23.0",
+    "pydantic>=2.0.0",
 ]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = "test_*.py"
+
+[tool.uv]
+default-dependencies = true

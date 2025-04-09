@@ -2,9 +2,14 @@ from src.tmdb_api import (
     search_movies, get_movie_details, get_popular_movies, 
     save_to_json, get_movie_by_url
 )
+from src.api_client import ApiClient
 from src.slack_bot import start_slack_bot
 from src.models.movie import Movie
 import json
+from src.config import API_BASE_URL
+
+# Initialize API client
+api_client = ApiClient(base_url=API_BASE_URL)
 
 def display_movie_info(movie):
     """Display formatted information about a movie."""
@@ -21,6 +26,15 @@ def display_movie_info(movie):
     print(f"\nOverview: {movie.overview}")
     if movie.get_poster_url():
         print(f"\nPoster: {movie.get_poster_url()}")
+    
+    # Try to get users who added this movie
+    try:
+        users = api_client.get_movie_users(movie.id)
+        if users:
+            print(f"\nAdded by: {', '.join(users)}")
+    except Exception as e:
+        print(f"Could not retrieve user info: {e}")
+        
     print(f"{'=' * 50}")
 
 def search_and_display():
@@ -94,6 +108,17 @@ def get_movie_from_url():
     if movie_data:
         movie = Movie(movie_data)
         display_movie_info(movie)
+        
+        # Ask if the user wants to add the movie to the API
+        if input("\nWould you like to add this movie to the API? (y/n): ").lower() == 'y':
+            try:
+                added = api_client.add_movie(movie_data)
+                if added:
+                    print(f"Movie '{movie.title}' successfully added to the API!")
+                else:
+                    print("Failed to add movie to the API.")
+            except Exception as e:
+                print(f"Error adding movie to API: {e}")
     else:
         print("Couldn't retrieve movie details.")
 
@@ -107,9 +132,11 @@ def main():
         print("2. Show popular movies")
         print("3. Get movie from TMDB URL")
         print("4. Start Slack bot")
-        print("5. Exit")
+        print("5. Get random movie from API")
+        print("6. List all movies in API")
+        print("7. Exit")
         
-        choice = input("\nEnter your choice (1-5): ")
+        choice = input("\nEnter your choice (1-7): ")
         
         if choice == '1':
             search_and_display()
@@ -120,6 +147,26 @@ def main():
         elif choice == '4':
             start_slack_bot()
         elif choice == '5':
+            try:
+                random_movie = api_client.get_random_movie()
+                if random_movie:
+                    display_movie_info(random_movie)
+                else:
+                    print("No movies available in the API.")
+            except Exception as e:
+                print(f"Error getting random movie: {e}")
+        elif choice == '6':
+            try:
+                all_movies = api_client.get_all_movies()
+                if all_movies:
+                    print(f"\nFound {len(all_movies)} movies in the API:")
+                    for movie_id, movie in all_movies.items():
+                        print(f"- {movie.title} (ID: {movie.id})")
+                else:
+                    print("No movies available in the API.")
+            except Exception as e:
+                print(f"Error getting all movies: {e}")
+        elif choice == '7':
             print("\nThanks for using Movie Club!")
             break
         else:
