@@ -45,8 +45,13 @@ class ApiClient:
                 f"{self.base_url}/api/movies", 
                 json=movie_data
             )
-            response.raise_for_status()
-            return Movie(response.json())
+            
+            if response.status_code in (200, 201):
+                return Movie(response.json())
+            else:
+                print(f"Failed to add movie. Status code: {response.status_code}")
+                print(f"Response: {response.text}")
+                return None
         except Exception as e:
             print(f"Error adding movie to API: {e}")
             return None

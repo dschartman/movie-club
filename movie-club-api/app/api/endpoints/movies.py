@@ -45,3 +45,14 @@ def get_movies_by_genre(
 ):
     """Get movies filtered by genre."""
     return movie_service.get_movies_by_genre(genre_id)
+
+@router.post("/movies", response_model=Movie)
+def add_movie(
+    movie: Movie,
+    movie_service: MovieService = Depends(get_movie_service)
+):
+    """Add a new movie to the database."""
+    result = movie_service.add_movie(movie.dict())
+    if not result:
+        raise HTTPException(status_code=400, detail="Failed to add movie")
+    return result

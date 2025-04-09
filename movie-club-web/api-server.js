@@ -107,14 +107,36 @@ app.get('/api/movies/:id', (req, res) => {
 });
 
 // Add a new movie
-app.post('/api/movies', (req, res) => {
+app.post('/api/movies', async (req, res) => {
   const movie = req.body;
   if (!movie || !movie.id) {
     return res.status(400).json({ error: 'Invalid movie data' });
   }
   
-  moviesData[movie.id] = movie;
-  res.status(201).json(movie);
+  try {
+    const movieApiUrl = process.env.MOVIE_API_URL || "http://movie-api:8000";
+    const response = await fetch(`${movieApiUrl}/movies`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(movie)
+    });
+    
+    if (!response.ok) {
+      throw new Error(`API responded with status: ${response.status}`);
+    }
+    
+    const addedMovie = await response.json();
+    // Update local cache
+    moviesData[movie.id] = addedMovie;
+    res.status(201).json(addedMovie);
+  } catch (error) {
+    console.error('Error adding movie to API:', error);
+    // Fall back to local operation if API is unavailable
+    moviesData[movie.id] = movie;
+    res.status(201).json(movie);
+  }
 });
 
 // Start the server

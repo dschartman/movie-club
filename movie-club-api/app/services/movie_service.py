@@ -124,3 +124,28 @@ class MovieService:
         """Get movies filtered by genre."""
         movies = self.get_all_movies().values()
         return [m for m in movies if any(g.get("id") == genre_id for g in m.genres)]
+        
+    def add_movie(self, movie_data: Dict) -> Optional[Movie]:
+        """Add a new movie to the data directory."""
+        if not movie_data or "id" not in movie_data:
+            return None
+            
+        movie_id = movie_data["id"]
+        movie_file = os.path.join(self.data_dir, f"{movie_id}.json")
+        
+        # Check if movie already exists
+        if os.path.exists(movie_file):
+            return self.get_movie(movie_id)
+            
+        try:
+            # Ensure the movie data is valid by parsing it through the Movie model
+            movie = Movie(**movie_data)
+            
+            # Save the movie data to a file
+            with open(movie_file, "w", encoding="utf-8") as f:
+                json.dump(movie_data, f, indent=4, ensure_ascii=False)
+            
+            return movie
+        except Exception as e:
+            print(f"Error adding movie {movie_id}: {e}")
+            return None
