@@ -8,7 +8,7 @@ RUN mkdir -p /app/data
 
 # Copy dependency file and install with uv
 COPY pyproject.toml .
-RUN uv pip install --system
+RUN uv sync
 
 # Copy source code
 COPY main.py .
@@ -21,4 +21,4 @@ ENV PYTHONUNBUFFERED=1
 EXPOSE 8000
 
 # Run the API server
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

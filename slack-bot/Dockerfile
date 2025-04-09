@@ -10,7 +10,7 @@ RUN mkdir -p /app/data
 COPY slack-bot/pyproject.toml .
 
 # Install dependencies with uv
-RUN uv pip install --system
+RUN uv sync
 
 # Copy source code
 COPY slack-bot/src/ src/
@@ -24,4 +24,4 @@ ENV PYTHONUNBUFFERED=1
 RUN chmod +x docker_entrypoint.py
 
 # Run the bot using our custom entrypoint script
-CMD ["python", "docker_entrypoint.py"]
+CMD ["uv", "run", "python", "docker_entrypoint.py"]
