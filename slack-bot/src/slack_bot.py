@@ -54,7 +54,7 @@ def get_user_names(client, user_ids):
         except Exception as e:
             print(f"Error getting user info for {user_id}: {str(e)}")
             # Use a more friendly fallback
-            user_names.append(f"@unknown-user")
+            user_names.append("@unknown-user")
 
     return user_names
 
