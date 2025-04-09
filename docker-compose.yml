@@ -10,7 +10,7 @@ services:
     env_file:
       - .env
     depends_on:
-      - api-server
+      - movie-api
 
   web-app:
     build:
@@ -20,7 +20,7 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - api-server
+      - movie-api
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost"]
       interval: 30s
@@ -40,6 +40,23 @@ services:
       - PORT=3001
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/movies"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      
+  movie-api:
+    build:
+      context: ./movie-club-api
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data:rw
+    environment:
+      - DEBUG=False
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/api/movies"]
       interval: 30s
       timeout: 5s
       retries: 3
