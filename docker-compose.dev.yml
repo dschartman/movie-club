@@ -10,7 +10,7 @@ services:
       - ./data:/app/data:rw  # Ensure read-write access
     env_file:
       - .env  # Use development environment variables
-    command: python docker_entrypoint.py  # Use our custom entrypoint
+    command: uv run python docker_entrypoint.py  # Use our custom entrypoint
 
   web-app:
     build:
@@ -54,4 +54,4 @@ services:
       - ./data:/app/data:rw
     environment:
       - DEBUG=True
-    command: uvicorn main:app --reload --host 0.0.0.0 --port 8000  # Enable hot-reloading for development
+    command: uv run uvicorn main:app --reload --host 0.0.0.0 --port 8000  # Enable hot-reloading for development
