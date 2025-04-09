@@ -5,9 +5,9 @@ import random
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
 from src.config import SLACK_BOT_TOKEN, SLACK_APP_TOKEN, SLACK_CHANNEL_ID
-from src.tmdb_api import extract_movie_id_from_url, get_movie_details, save_to_json
+from src.tmdb_api import extract_movie_id_from_url, get_movie_details
 from src.models.movie import Movie
-from src.models.movie_tracking import MovieTracker
+from src.api_client import ApiClient
 
 # Initialize Slack Bolt app
 app = App(token=SLACK_BOT_TOKEN)
@@ -15,8 +15,8 @@ app = App(token=SLACK_BOT_TOKEN)
 # Set to keep track of processed URLs to avoid duplicates
 processed_urls = set()
 
-# Initialize movie tracker
-movie_tracker = MovieTracker()
+# Initialize API client
+api_client = ApiClient()
 
 
 # Function to get user names from IDs
@@ -59,35 +59,11 @@ def get_user_names(client, user_ids):
     return user_names
 
 
-# Function to get all movie data files
+# Function to get all movies from API
 def get_all_movies():
-    """Get all movies from the data directory."""
-    movies = []
-    data_dir = "data"
-
-    if not os.path.exists(data_dir):
-        return []
-
-    for filename in os.listdir(data_dir):
-        if (
-            filename.endswith(".json")
-            and filename != "popular_movies.json"
-            and filename != "movie_users.json"
-        ):
-            try:
-                # Skip processing URLs file
-                if filename == "processed_urls.txt":
-                    continue
-
-                with open(os.path.join(data_dir, filename), "r", encoding="utf-8") as f:
-                    movie_data = json.load(f)
-                    # Skip non-movie data files
-                    if "title" in movie_data and "id" in movie_data:
-                        movies.append(Movie(movie_data))
-            except Exception as e:
-                print(f"Error loading movie data from {filename}: {e}")
-
-    return movies
+    """Get all movies from the API."""
+    movies_dict = api_client.get_all_movies()
+    return list(movies_dict.values())
 
 
 def format_movie_list(movies, client=None):
@@ -104,8 +80,8 @@ def format_movie_list(movies, client=None):
         line = f"{i}. *{movie.title}* ({year}) - {rating}"
 
         # Get the users who added this movie if client is provided
-        if client:
-            user_ids = movie_tracker.get_movie_users(movie.id)
+        if client and movie.id:
+            user_ids = api_client.get_movie_users(movie.id)
             if user_ids:
                 user_names = get_user_names(client, user_ids)
                 line += f" - Added by: {', '.join(user_names)}"
@@ -116,12 +92,8 @@ def format_movie_list(movies, client=None):
 
 
 def get_random_movie():
-    """Get a random movie from the data directory."""
-    movies = get_all_movies()
-    if not movies:
-        return None
-
-    return random.choice(movies)
+    """Get a random movie from the API."""
+    return api_client.get_random_movie()
 
 
 def format_movie_detail(movie, client=None):
@@ -158,8 +130,8 @@ def format_movie_detail(movie, client=None):
         )
 
     # Add users who added this movie if client is provided
-    if client:
-        user_ids = movie_tracker.get_movie_users(movie.id)
+    if client and movie.id:
+        user_ids = api_client.get_movie_users(movie.id)
         if user_ids:
             user_names = get_user_names(client, user_ids)
             blocks.append(
@@ -282,7 +254,7 @@ def save_processed_url(url):
 
 
 def process_tmdb_url(url, user_id=None):
-    """Process a TMDB URL to fetch and save movie data."""
+    """Process a TMDB URL to fetch and add movie data via API."""
     movie_id = extract_movie_id_from_url(url)
     if not movie_id:
         return None
@@ -291,13 +263,12 @@ def process_tmdb_url(url, user_id=None):
     if not movie_data:
         return None
 
-    # Save to JSON using just the movie ID as filename
-    filename = f"{movie_id}.json"
-    save_to_json(movie_data, filename)
-
+    # Add the movie to the API
+    movie_obj = api_client.add_movie(movie_data)
+    
     # Track the user who added this movie if user_id is provided
-    if user_id:
-        movie_tracker.add_user_to_movie(movie_id, user_id)
+    if user_id and movie_obj and movie_obj.id:
+        api_client.add_user_to_movie(movie_obj.id, user_id)
 
     return movie_data
 
@@ -362,6 +333,7 @@ def start_slack_bot():
     processed_urls = load_processed_urls()
 
     print(f"Starting Slack bot, monitoring channel ID: {SLACK_CHANNEL_ID}")
+    print(f"Connected to Movie API at: {api_client.base_url}")
     print(f"Already processed {len(processed_urls)} URLs")
     print("Press Ctrl+C to stop the bot")
 

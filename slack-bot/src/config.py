@@ -13,7 +13,8 @@ SLACK_APP_TOKEN = os.getenv("SLACK_APP_TOKEN")  # xapp- token for Socket Mode
 SLACK_CHANNEL_ID = os.getenv("SLACK_CHANNEL_ID")  # Channel to monitor
 
 # API Configuration
-API_BASE_URL = os.getenv("API_BASE_URL", "http://localhost:8000")
+# In Docker Compose environment, use the service name as the host
+API_BASE_URL = os.getenv("API_BASE_URL", "http://movie-api:8000")
 
 # Application Configuration
 DEBUG = True
