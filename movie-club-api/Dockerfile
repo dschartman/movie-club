@@ -1,4 +1,5 @@
 FROM python:3.13-slim
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /app
 
@@ -7,8 +8,7 @@ RUN mkdir -p /app/data
 
 # Copy dependency file and install with uv
 COPY pyproject.toml .
-RUN pip install uv && \
-    uv pip install --system
+RUN uv pip install --system
 
 # Copy source code
 COPY main.py .
