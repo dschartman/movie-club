@@ -5,9 +5,10 @@ WORKDIR /app
 # Create data directory explicitly before any volume mounting happens
 RUN mkdir -p /app/data
 
-# Copy requirements and install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+# Copy dependency file and install with uv
+COPY pyproject.toml .
+RUN pip install uv && \
+    uv pip install --system
 
 # Copy source code
 COPY main.py .
