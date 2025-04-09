@@ -2,8 +2,8 @@ FROM node:lts-alpine
 
 WORKDIR /app
 
-# Create data directory with proper permissions
-RUN mkdir -p /app/data && chmod 777 /app/data
+# Create working directory structure
+RUN mkdir -p /app/movie-club-web
 
 # Copy package files
 COPY movie-club-web/package*.json ./movie-club-web/

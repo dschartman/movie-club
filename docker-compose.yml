@@ -5,8 +5,7 @@ services:
       dockerfile: slack-bot/Dockerfile
     restart: unless-stopped
     volumes:
-      - ./data:/app/data
-      - ./movie-club-web/public:/app/public
+      - ./movie-club-web/public:/app/public:ro
     env_file:
       - .env
     depends_on:
@@ -34,8 +33,6 @@ services:
     restart: unless-stopped
     ports:
       - "3001:3001"
-    volumes:
-      - ./data:/app/data
     environment:
       - PORT=3001
     healthcheck:

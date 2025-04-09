@@ -3,7 +3,7 @@ FROM node:lts-alpine
 WORKDIR /app
 
 # Create the directory structure to match development
-RUN mkdir -p /app/movie-club-web /app/data && chmod 777 /app/data
+RUN mkdir -p /app/movie-club-web
 
 # Copy package files to the correct location
 COPY movie-club-web/package*.json ./movie-club-web/

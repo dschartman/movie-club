@@ -6,6 +6,7 @@ from src.api_client import ApiClient
 from src.slack_bot import start_slack_bot
 from src.models.movie import Movie
 import json
+import os
 from src.config import API_BASE_URL
 
 # Initialize API client

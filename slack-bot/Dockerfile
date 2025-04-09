@@ -3,8 +3,7 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
 
 WORKDIR /app
 
-# Create data directory explicitly before any volume mounting happens
-RUN mkdir -p /app/data
+# No need for data directory as we'll use the API
 
 # Copy dependency files
 COPY slack-bot/pyproject.toml .

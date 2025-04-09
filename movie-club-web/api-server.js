@@ -9,37 +9,24 @@ const PORT = process.env.PORT || 3001;
 // Sample movie data - in production, this would come from a database
 let moviesData = {};
 
-// Load movie data from individual JSON files in the data directory
-try {
-  const dataDir = path.join(__dirname, '../data');
-  
-  if (fs.existsSync(dataDir)) {
-    const files = fs.readdirSync(dataDir);
-    const jsonFiles = files.filter(file => file.endsWith('.json'));
+// Get movie data from the movie API
+const fetchMoviesFromAPI = async () => {
+  try {
+    const movieApiUrl = process.env.MOVIE_API_URL || "http://movie-api:8000";
+    console.log(`Fetching movies from API: ${movieApiUrl}/movies`);
     
-    for (const file of jsonFiles) {
-      try {
-        const filePath = path.join(dataDir, file);
-        const rawData = fs.readFileSync(filePath, 'utf8');
-        const movieData = JSON.parse(rawData);
-        
-        // Extract movie ID from filename (e.g., "123.json" -> "123")
-        const movieId = path.basename(file, '.json');
-        
-        // Store movie by ID
-        if (movieData && movieData.id) {
-          moviesData[movieId] = movieData;
-        }
-      } catch (fileErr) {
-        console.error(`Error loading movie from ${file}:`, fileErr);
-      }
+    const response = await fetch(`${movieApiUrl}/movies`);
+    if (!response.ok) {
+      throw new Error(`API responded with status: ${response.status}`);
     }
     
-    console.log(`Loaded ${Object.keys(moviesData).length} movies from data directory`);
-  } else {
-    console.log("Data directory not found, using sample data");
-    // Use sample data
-    moviesData = {
+    const data = await response.json();
+    console.log(`Loaded ${Object.keys(data).length} movies from API`);
+    return data;
+  } catch (err) {
+    console.error("Error fetching movie data from API:", err);
+    // Use sample data as fallback
+    return {
       "1": {
         "id": 1,
         "title": "The Shawshank Redemption",
@@ -65,46 +52,24 @@ try {
       }
     };
   }
-} catch (err) {
-  console.error("Error loading movie data:", err);
-  moviesData = {};
-}
+};
+
+// Load initial data
+fetchMoviesFromAPI().then(data => {
+  moviesData = data;
+});
 
 // Middleware
 app.use(cors());
 app.use(express.json());
 
-// Function to reload all movie data
-const reloadMovieData = () => {
+// Function to reload all movie data from API
+const reloadMovieData = async () => {
   try {
-    const dataDir = path.join(__dirname, '../data');
-    moviesData = {}; // Clear existing data
-    
-    if (fs.existsSync(dataDir)) {
-      const files = fs.readdirSync(dataDir);
-      const jsonFiles = files.filter(file => file.endsWith('.json'));
-      
-      for (const file of jsonFiles) {
-        try {
-          const filePath = path.join(dataDir, file);
-          const rawData = fs.readFileSync(filePath, 'utf8');
-          const movieData = JSON.parse(rawData);
-          
-          // Extract movie ID from filename
-          const movieId = path.basename(file, '.json');
-          
-          if (movieData && movieData.id) {
-            moviesData[movieId] = movieData;
-          }
-        } catch (fileErr) {
-          console.error(`Error loading movie from ${file}:`, fileErr);
-        }
-      }
-      
-      console.log(`Reloaded ${Object.keys(moviesData).length} movies from data directory`);
-      return true;
-    }
-    return false;
+    const data = await fetchMoviesFromAPI();
+    moviesData = data;
+    console.log(`Reloaded ${Object.keys(moviesData).length} movies from API`);
+    return true;
   } catch (err) {
     console.error("Error reloading movie data:", err);
     return false;
@@ -117,12 +82,16 @@ app.get('/api/movies', (req, res) => {
 });
 
 // Endpoint to refresh movie data
-app.post('/api/reload', (req, res) => {
-  const success = reloadMovieData();
-  if (success) {
-    res.json({ success: true, message: `Reloaded ${Object.keys(moviesData).length} movies` });
-  } else {
-    res.status(500).json({ success: false, message: "Failed to reload movie data" });
+app.post('/api/reload', async (req, res) => {
+  try {
+    const success = await reloadMovieData();
+    if (success) {
+      res.json({ success: true, message: `Reloaded ${Object.keys(moviesData).length} movies` });
+    } else {
+      res.status(500).json({ success: false, message: "Failed to reload movie data" });
+    }
+  } catch (error) {
+    res.status(500).json({ success: false, message: `Error: ${error.message}` });
   }
 });
 
