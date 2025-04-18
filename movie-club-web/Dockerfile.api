@@ -13,6 +13,9 @@ RUN npm ci --only=production
 # Copy API server code to the correct location
 COPY movie-club-web/api-server.js ./
 
+# Install wget for healthchecks
+RUN apk --no-cache add wget
+
 # Return to app directory
 WORKDIR /app
 

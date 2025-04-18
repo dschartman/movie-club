@@ -106,30 +106,48 @@ const fetchMoviesFromAPI = async () => {
 // Function to retry connecting to the API with exponential backoff
 const setupApiConnection = async () => {
   try {
+    console.log(`API connection attempt ${connectionAttempts + 1}/${MAX_RETRY_ATTEMPTS}...`);
     const data = await fetchMoviesFromAPI();
     moviesData = data;
     
-    if (!isConnectedToApi && connectionAttempts < MAX_RETRY_ATTEMPTS) {
-      // Calculate backoff time (exponential with jitter)
-      const baseDelay = Math.min(1000 * Math.pow(2, connectionAttempts), 30000);
-      const jitter = Math.random() * 1000;
-      const delay = baseDelay + jitter;
+    if (isConnectedToApi) {
+      console.log(`✅ Successfully connected to Movie API! Loaded ${Object.keys(data).length} movies.`);
       
-      console.log(`Will retry connecting to Movie API in ${Math.round(delay/1000)} seconds...`);
+      // Schedule periodic refresh
+      setTimeout(() => {
+        console.log("Performing periodic data refresh...");
+        setupApiConnection();
+      }, 5 * 60 * 1000); // Refresh every 5 minutes
       
-      setTimeout(setupApiConnection, delay);
-    } else if (connectionAttempts >= MAX_RETRY_ATTEMPTS && !isConnectedToApi) {
-      console.log(`Reached maximum retry attempts (${MAX_RETRY_ATTEMPTS}). Will stop trying to connect.`);
-      // Set up a manual retry every 5 minutes
-      setTimeout(setupApiConnection, 5 * 60 * 1000);
+      return;
     }
   } catch (err) {
-    console.error("Unexpected error in setupApiConnection:", err);
+    console.error("Error in setupApiConnection:", err.message);
+  }
+  
+  // If we're here, either there was an error or we're not connected yet
+  if (!isConnectedToApi && connectionAttempts < MAX_RETRY_ATTEMPTS) {
+    // Calculate backoff time (exponential with jitter)
+    const baseDelay = Math.min(1000 * Math.pow(2, connectionAttempts), 30000);
+    const jitter = Math.random() * 1000;
+    const delay = baseDelay + jitter;
+    
+    console.log(`⏱️ Movie API not ready. Will retry in ${Math.round(delay/1000)} seconds...`);
+    
+    setTimeout(setupApiConnection, delay);
+  } else if (connectionAttempts >= MAX_RETRY_ATTEMPTS && !isConnectedToApi) {
+    console.log(`❌ Reached maximum retry attempts (${MAX_RETRY_ATTEMPTS}). Will try again in 5 minutes.`);
+    // Set up a manual retry every 5 minutes
+    setTimeout(setupApiConnection, 5 * 60 * 1000);
   }
 };
 
-// Initialize connection to API
-setupApiConnection();
+// Initialize connection to API with a short delay to give movie-api time to start
+console.log("Waiting 3 seconds before initial API connection attempt...");
+setTimeout(() => {
+  console.log("Starting connection to Movie API...");
+  setupApiConnection();
+}, 3000);
 
 // Middleware
 app.use(cors());

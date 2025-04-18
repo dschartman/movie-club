@@ -35,11 +35,15 @@ services:
       - "3001:3001"
     environment:
       - PORT=3001
+      - MOVIE_API_URL=http://movie-api:8000
+    depends_on:
+      - movie-api
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/movies"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
       interval: 30s
-      timeout: 5s
+      timeout: 10s
       retries: 3
+      start_period: 10s
       
   movie-api:
     build:
@@ -53,8 +57,9 @@ services:
     environment:
       - DEBUG=False
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/api/movies"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8000/docs"]
       interval: 30s
-      timeout: 5s
+      timeout: 10s
       retries: 3
+      start_period: 5s
     command: uv run uvicorn main:app --host 0.0.0.0 --port 8000
