@@ -12,12 +12,34 @@ let isConnectedToApi = false;
 let connectionAttempts = 0;
 const MAX_RETRY_ATTEMPTS = 10;
 
+// Check if Movie API is available
+const checkApiAvailability = async (apiUrl) => {
+  try {
+    console.log(`Checking Movie API availability: ${apiUrl}/docs`);
+    const response = await fetch(`${apiUrl}/docs`, {
+      method: 'HEAD',
+      signal: AbortSignal.timeout(3000) // 3 second timeout
+    });
+    return response.ok;
+  } catch (err) {
+    console.log(`Movie API not available: ${err.message}`);
+    return false;
+  }
+};
+
 // Get movie data from the movie API
 const fetchMoviesFromAPI = async () => {
   try {
     // Default URL for Docker environments uses the service name defined in docker-compose
     // For local development outside Docker, set MOVIE_API_URL environment variable
     const movieApiUrl = process.env.MOVIE_API_URL || "http://movie-api:8000";
+    
+    // First check if the API is available at all
+    const isAvailable = await checkApiAvailability(movieApiUrl);
+    if (!isAvailable) {
+      throw new Error("Movie API is not available");
+    }
+    
     console.log(`Fetching movies from API: ${movieApiUrl}/movies`);
     
     const response = await fetch(`${movieApiUrl}/movies`, {
@@ -142,12 +164,13 @@ const setupApiConnection = async () => {
   }
 };
 
-// Initialize connection to API with a short delay to give movie-api time to start
-console.log("Waiting 3 seconds before initial API connection attempt...");
+// Initialize connection to API with a longer delay to give movie-api time to start
+const initialDelay = process.env.INITIAL_DELAY || 10000; // Default 10 seconds, configurable
+console.log(`Waiting ${initialDelay/1000} seconds before initial API connection attempt...`);
 setTimeout(() => {
   console.log("Starting connection to Movie API...");
   setupApiConnection();
-}, 3000);
+}, initialDelay);
 
 // Middleware
 app.use(cors());

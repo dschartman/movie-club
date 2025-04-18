@@ -41,9 +41,11 @@ services:
       - ./movie-club-web:/app/movie-club-web:ro  # Mount in a subdirectory to avoid conflicts
     environment:
       - MOVIE_API_URL=http://movie-api:8000  # Explicitly set the Movie API URL for Docker networking
+      - INITIAL_DELAY=15000  # Wait 15 seconds before trying to connect to the API
     command: nodemon movie-club-web/api-server.js  # Use correct path to api-server.js
     depends_on:
-      - movie-api  # Ensure the movie-api container starts first
+      movie-api:  # Wait for the movie-api to be healthy before starting
+        condition: service_healthy
     restart: always  # Automatically restart if the container crashes
     # Add healthcheck to verify the API server is working correctly
     healthcheck:
