@@ -8,6 +8,9 @@ const PORT = process.env.PORT || 3001;
 
 // Sample movie data - in production, this would come from a database
 let moviesData = {};
+let isConnectedToApi = false;
+let connectionAttempts = 0;
+const MAX_RETRY_ATTEMPTS = 10;
 
 // Get movie data from the movie API
 const fetchMoviesFromAPI = async () => {
@@ -33,9 +36,13 @@ const fetchMoviesFromAPI = async () => {
       throw new Error("API returned an empty movie collection");
     }
     
+    isConnectedToApi = true;
+    connectionAttempts = 0;
     return data;
   } catch (err) {
-    console.error("Error fetching movie data from API:", err);
+    isConnectedToApi = false;
+    connectionAttempts++;
+    console.error(`Error fetching movie data from API (attempt ${connectionAttempts}/${MAX_RETRY_ATTEMPTS}):`, err);
     
     // If we already have movie data, keep using it instead of falling back to sample data
     if (Object.keys(moviesData).length > 0) {
@@ -96,10 +103,33 @@ const fetchMoviesFromAPI = async () => {
   }
 };
 
-// Load initial data
-fetchMoviesFromAPI().then(data => {
-  moviesData = data;
-});
+// Function to retry connecting to the API with exponential backoff
+const setupApiConnection = async () => {
+  try {
+    const data = await fetchMoviesFromAPI();
+    moviesData = data;
+    
+    if (!isConnectedToApi && connectionAttempts < MAX_RETRY_ATTEMPTS) {
+      // Calculate backoff time (exponential with jitter)
+      const baseDelay = Math.min(1000 * Math.pow(2, connectionAttempts), 30000);
+      const jitter = Math.random() * 1000;
+      const delay = baseDelay + jitter;
+      
+      console.log(`Will retry connecting to Movie API in ${Math.round(delay/1000)} seconds...`);
+      
+      setTimeout(setupApiConnection, delay);
+    } else if (connectionAttempts >= MAX_RETRY_ATTEMPTS && !isConnectedToApi) {
+      console.log(`Reached maximum retry attempts (${MAX_RETRY_ATTEMPTS}). Will stop trying to connect.`);
+      // Set up a manual retry every 5 minutes
+      setTimeout(setupApiConnection, 5 * 60 * 1000);
+    }
+  } catch (err) {
+    console.error("Unexpected error in setupApiConnection:", err);
+  }
+};
+
+// Initialize connection to API
+setupApiConnection();
 
 // Middleware
 app.use(cors());
@@ -181,18 +211,23 @@ app.post('/api/movies', async (req, res) => {
   }
 });
 
+// Add health check endpoint
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    connectedToMovieApi: isConnectedToApi,
+    moviesCount: Object.keys(moviesData).length,
+    connectionAttempts
+  });
+});
+
 // Start the server
 app.listen(PORT, () => {
   console.log(`API server running on port ${PORT}`);
   console.log(`Expected Movie API URL: ${process.env.MOVIE_API_URL || "http://movie-api:8000"}`);
   console.log(`If you're not seeing all movies, check that the Movie API is running and accessible`);
   console.log(`You may need to set the MOVIE_API_URL environment variable to point to your Python API`);
-  
-  // Attempt to load movies on startup
-  reloadMovieData()
-    .then(success => {
-      if (!success) {
-        console.log("Initial data load failed. Will use fallback data until API is available.");
-      }
-    });
+  console.log(`The server will automatically retry connecting to the Movie API if it's not available`);
+
+  // We're already attempting to connect via setupApiConnection so we don't need the explicit reload here
 });
