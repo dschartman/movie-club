@@ -66,15 +66,29 @@ def get_all_movies():
     return list(movies_dict.values())
 
 
-def format_movie_list(movies, client=None):
-    """Format movie list for slack display."""
+def format_movie_list(movies, client=None, page=1, page_size=25):
+    """Format movie list for slack display with pagination."""
     if not movies:
         return "No movies found in the database."
 
+    # Sort movies alphabetically
     movies.sort(key=lambda x: x.title)
+    
+    # Calculate total pages
+    total_pages = (len(movies) + page_size - 1) // page_size
+    
+    # Get movies for current page
+    start_idx = (page - 1) * page_size
+    end_idx = min(start_idx + page_size, len(movies))
+    page_movies = movies[start_idx:end_idx]
+    
     movie_lines = []
-
-    for i, movie in enumerate(movies, 1):
+    
+    # Add page info header
+    movie_lines.append(f"*Page {page}/{total_pages} (Showing movies {start_idx+1}-{end_idx} of {len(movies)})*")
+    movie_lines.append("")  # Empty line for spacing
+    
+    for i, movie in enumerate(page_movies, start_idx + 1):
         year = movie.release_date[:4] if movie.release_date else "N/A"
         rating = f"{movie.vote_average}/10" if movie.vote_average else "N/A"
         line = f"{i}. *{movie.title}* ({year}) - {rating}"
@@ -191,23 +205,64 @@ def list_movies(ack, respond, command):
     # Acknowledge command request
     ack()
 
-    movies = get_all_movies()
-    movie_list = format_movie_list(movies, app.client)
+    # Parse command text for page number
+    command_text = command.get("text", "").strip()
+    try:
+        page = int(command_text) if command_text else 1
+        if page < 1:
+            page = 1
+    except ValueError:
+        page = 1
 
-    respond(
+    movies = get_all_movies()
+    
+    # Calculate pagination info
+    page_size = 25  # Number of movies per page
+    total_pages = (len(movies) + page_size - 1) // page_size
+    
+    # Ensure page is within valid range
+    if page > total_pages and total_pages > 0:
+        page = total_pages
+    
+    # Format movie list with pagination
+    movie_list = format_movie_list(movies, app.client, page, page_size)
+    
+    # Create page navigation buttons
+    actions = []
+    if total_pages > 1:
+        if page > 1:
+            actions.append({
+                "type": "button",
+                "text": {"type": "plain_text", "text": "◀️ Previous", "emoji": True},
+                "value": f"{page-1}",
+                "action_id": "movie_prev_page"
+            })
+        
+        if page < total_pages:
+            actions.append({
+                "type": "button",
+                "text": {"type": "plain_text", "text": "Next ▶️", "emoji": True},
+                "value": f"{page+1}",
+                "action_id": "movie_next_page"
+            })
+    
+    # Create response blocks
+    blocks = [
         {
-            "blocks": [
-                {
-                    "type": "section",
-                    "text": {
-                        "type": "mrkdwn",
-                        "text": f"*Movie List ({len(movies)} movies)*",
-                    },
-                },
-                {"type": "section", "text": {"type": "mrkdwn", "text": movie_list}},
-            ]
-        }
-    )
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*Movie List ({len(movies)} movies)*",
+            },
+        },
+        {"type": "section", "text": {"type": "mrkdwn", "text": movie_list}}
+    ]
+    
+    # Add navigation buttons if needed
+    if actions:
+        blocks.append({"type": "actions", "elements": actions})
+    
+    respond({"blocks": blocks})
 
 
 @app.command("/random")
@@ -318,6 +373,99 @@ def handle_message_events(event, client):
             except Exception as e:
                 print(f"Error adding middle finger reaction: {e}")
 
+
+# Add button action handlers for pagination
+@app.action("movie_next_page")
+def handle_next_page(ack, body, respond):
+    """Handle pagination next page button."""
+    ack()
+    page = int(body["actions"][0]["value"])
+    movies = get_all_movies()
+    page_size = 25
+    movie_list = format_movie_list(movies, app.client, page, page_size)
+    
+    total_pages = (len(movies) + page_size - 1) // page_size
+    
+    # Create page navigation buttons
+    actions = []
+    if page > 1:
+        actions.append({
+            "type": "button",
+            "text": {"type": "plain_text", "text": "◀️ Previous", "emoji": True},
+            "value": f"{page-1}",
+            "action_id": "movie_prev_page"
+        })
+    
+    if page < total_pages:
+        actions.append({
+            "type": "button",
+            "text": {"type": "plain_text", "text": "Next ▶️", "emoji": True},
+            "value": f"{page+1}",
+            "action_id": "movie_next_page"
+        })
+    
+    blocks = [
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*Movie List ({len(movies)} movies)*",
+            },
+        },
+        {"type": "section", "text": {"type": "mrkdwn", "text": movie_list}}
+    ]
+    
+    if actions:
+        blocks.append({"type": "actions", "elements": actions})
+    
+    # Update the original message
+    respond({"blocks": blocks, "replace_original": True})
+
+@app.action("movie_prev_page")
+def handle_prev_page(ack, body, respond):
+    """Handle pagination previous page button."""
+    ack()
+    page = int(body["actions"][0]["value"])
+    movies = get_all_movies()
+    page_size = 25
+    movie_list = format_movie_list(movies, app.client, page, page_size)
+    
+    total_pages = (len(movies) + page_size - 1) // page_size
+    
+    # Create page navigation buttons
+    actions = []
+    if page > 1:
+        actions.append({
+            "type": "button",
+            "text": {"type": "plain_text", "text": "◀️ Previous", "emoji": True},
+            "value": f"{page-1}",
+            "action_id": "movie_prev_page"
+        })
+    
+    if page < total_pages:
+        actions.append({
+            "type": "button",
+            "text": {"type": "plain_text", "text": "Next ▶️", "emoji": True},
+            "value": f"{page+1}",
+            "action_id": "movie_next_page"
+        })
+    
+    blocks = [
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*Movie List ({len(movies)} movies)*",
+            },
+        },
+        {"type": "section", "text": {"type": "mrkdwn", "text": movie_list}}
+    ]
+    
+    if actions:
+        blocks.append({"type": "actions", "elements": actions})
+    
+    # Update the original message
+    respond({"blocks": blocks, "replace_original": True})
 
 def start_slack_bot():
     """Start the Slack bot in Socket Mode."""
