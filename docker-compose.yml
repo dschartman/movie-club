@@ -11,44 +11,44 @@ services:
     depends_on:
       - movie-api
 
-  web-app:
-    build:
-      context: ./movie-club-web
-      dockerfile: Dockerfile
-    restart: unless-stopped
-    ports:
-      - "80:80"
-    depends_on:
-      - movie-api
-      - api-server
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost"]
-      interval: 30s
-      timeout: 5s
-      retries: 3
-      start_period: 15s
+  # web-app:
+  #   build:
+  #     context: ./movie-club-web
+  #     dockerfile: Dockerfile
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #   depends_on:
+  #     - movie-api
+  #     - api-server
+  #   healthcheck:
+  #     test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost"]
+  #     interval: 30s
+  #     timeout: 5s
+  #     retries: 3
+  #     start_period: 15s
 
-  api-server:
-    build:
-      context: .
-      dockerfile: movie-club-web/Dockerfile.api
-    container_name: api-server  # Fixed container name for reliable DNS resolution
-    restart: unless-stopped
-    ports:
-      - "3001:3001"
-    environment:
-      - PORT=3001
-      - MOVIE_API_URL=http://movie-api:8000
-      - INITIAL_DELAY=15000  # Wait 15 seconds before trying to connect to the API
-    depends_on:
-      movie-api:  # Wait for the movie-api to be healthy before starting
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
+  # api-server:
+  #   build:
+  #     context: .
+  #     dockerfile: movie-club-web/Dockerfile.api
+  #   container_name: api-server  # Fixed container name for reliable DNS resolution
+  #   restart: unless-stopped
+  #   ports:
+  #     - "3001:3001"
+  #   environment:
+  #     - PORT=3001
+  #     - MOVIE_API_URL=http://movie-api:8000
+  #     - INITIAL_DELAY=15000  # Wait 15 seconds before trying to connect to the API
+  #   depends_on:
+  #     movie-api:  # Wait for the movie-api to be healthy before starting
+  #       condition: service_healthy
+  #   healthcheck:
+  #     test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+  #     interval: 30s
+  #     timeout: 10s
+  #     retries: 3
+  #     start_period: 10s
       
   movie-api:
     build:
