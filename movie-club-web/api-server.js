@@ -12,10 +12,9 @@ let moviesData = {};
 // Get movie data from the movie API
 const fetchMoviesFromAPI = async () => {
   try {
-    // Update the default URL to work in both development and production environments
-    // In production, make sure to set the MOVIE_API_URL environment variable
-    // to the correct URL of your Python Movie API
-    const movieApiUrl = process.env.MOVIE_API_URL || "http://localhost:8000";
+    // Default URL for Docker environments uses the service name defined in docker-compose
+    // For local development outside Docker, set MOVIE_API_URL environment variable
+    const movieApiUrl = process.env.MOVIE_API_URL || "http://movie-api:8000";
     console.log(`Fetching movies from API: ${movieApiUrl}/movies`);
     
     const response = await fetch(`${movieApiUrl}/movies`, {
@@ -185,7 +184,7 @@ app.post('/api/movies', async (req, res) => {
 // Start the server
 app.listen(PORT, () => {
   console.log(`API server running on port ${PORT}`);
-  console.log(`Expected Movie API URL: ${process.env.MOVIE_API_URL || "http://localhost:8000"}`);
+  console.log(`Expected Movie API URL: ${process.env.MOVIE_API_URL || "http://movie-api:8000"}`);
   console.log(`If you're not seeing all movies, check that the Movie API is running and accessible`);
   console.log(`You may need to set the MOVIE_API_URL environment variable to point to your Python API`);
   
