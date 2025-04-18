@@ -29,12 +29,15 @@ services:
       - REACT_APP_API_URL=http://localhost:3001
       - CI=false  # Prevents treating warnings as errors
       - CHOKIDAR_USEPOLLING=true
+    depends_on:
+      - api-server
     command: npm start  # Run with hot reloading
 
   api-server:
     build:
       context: .
       dockerfile: movie-club-web/Dockerfile.api.dev  # Use dev-specific Dockerfile
+    container_name: api-server  # Fixed container name for reliable DNS resolution
     ports:
       - "3001:3001"
     volumes:
