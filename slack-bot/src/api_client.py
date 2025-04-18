@@ -1,4 +1,5 @@
 import requests
+import time
 from typing import Dict, List, Optional, Any
 import json
 from src.config import API_BASE_URL
@@ -6,6 +7,11 @@ from src.models.movie import Movie
 
 class ApiClient:
     """Client for communicating with the Movie Club API"""
+    
+    # Static cache shared across all instances
+    _users_cache = {}  # Cache for user data
+    _users_cache_timestamp = 0
+    _USERS_CACHE_EXPIRY = 300  # 5 minutes
     
     def __init__(self, base_url=None):
         self.base_url = base_url or API_BASE_URL
@@ -67,11 +73,24 @@ class ApiClient:
             return None
     
     def get_movie_users(self, movie_id: int) -> List[str]:
-        """Get users who have added a movie"""
+        """Get users who have added a movie with caching"""
+        current_time = time.time()
+        
+        # Check cache first
+        if (current_time - self._users_cache_timestamp < self._USERS_CACHE_EXPIRY and 
+            movie_id in self._users_cache):
+            return self._users_cache[movie_id]
+            
         try:
             response = requests.get(f"{self.base_url}/api/movies/{movie_id}/users")
             response.raise_for_status()
-            return response.json()
+            users = response.json()
+            
+            # Update cache
+            self._users_cache[movie_id] = users
+            self._users_cache_timestamp = current_time
+            
+            return users
         except Exception as e:
             print(f"Error fetching users for movie {movie_id}: {e}")
             return []

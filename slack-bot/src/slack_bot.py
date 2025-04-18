@@ -90,6 +90,14 @@ movie_cache = {
 # Movie cache expiration time in seconds (2 minutes)
 MOVIE_CACHE_EXPIRY = 120
 
+# Cache for movie users data
+movie_users_cache = {
+    'data': {},
+    'timestamp': 0
+}
+# Movie users cache expiration time in seconds (5 minutes)
+MOVIE_USERS_CACHE_EXPIRY = 300
+
 # Function to get all movies from API with caching
 def get_all_movies():
     """Get all movies from the API with caching."""
@@ -110,7 +118,7 @@ def get_all_movies():
     return movie_list
 
 
-def format_movie_list(movies, client=None, page=1, page_size=25):
+def format_movie_list(movies, client=None, page=1, page_size=25, users_by_movie=None):
     """Format movie list for slack display with pagination."""
     if not movies:
         return "No movies found in the database."
@@ -137,12 +145,9 @@ def format_movie_list(movies, client=None, page=1, page_size=25):
         rating = f"{movie.vote_average}/10" if movie.vote_average else "N/A"
         line = f"{i}. *{movie.title}* ({year}) - {rating}"
 
-        # Get the users who added this movie if client is provided
-        if client and movie.id:
-            user_ids = api_client.get_movie_users(movie.id)
-            if user_ids:
-                user_names = get_user_names(client, user_ids)
-                line += f" - Added by: {', '.join(user_names)}"
+        # Add user information if available
+        if users_by_movie and movie.id in users_by_movie and users_by_movie[movie.id]:
+            line += f" - Added by: {', '.join(users_by_movie[movie.id])}"
 
         movie_lines.append(line)
 
@@ -154,7 +159,7 @@ def get_random_movie():
     return api_client.get_random_movie()
 
 
-def format_movie_detail(movie, client=None):
+def format_movie_detail(movie, client=None, users_by_movie=None):
     """Format a single movie for detailed slack display."""
     blocks = [
         {
@@ -187,8 +192,22 @@ def format_movie_detail(movie, client=None):
             }
         )
 
-    # Add users who added this movie if client is provided
-    if client and movie.id:
+    # Add users who added this movie
+    # First check if pre-fetched user data is available
+    if users_by_movie and movie.id in users_by_movie and users_by_movie[movie.id]:
+        blocks.append(
+            {
+                "type": "section",
+                "fields": [
+                    {
+                        "type": "mrkdwn",
+                        "text": f"*Added by:* {', '.join(users_by_movie[movie.id])}",
+                    }
+                ],
+            }
+        )
+    # Fallback to fetching users if needed and client is provided
+    elif client and movie.id:
         user_ids = api_client.get_movie_users(movie.id)
         if user_ids:
             user_names = get_user_names(client, user_ids)
@@ -277,15 +296,31 @@ def random_movie(ack, respond, command):
     """Handle /random command to pick a random movie."""
     # Acknowledge command request
     ack()
+    start_time = time.time()
 
     movie = get_random_movie()
 
     if not movie:
         respond("No movies found in the database.")
         return
+        
+    # Get pre-fetched user data or create it for this single movie
+    if movie.id and time.time() - movie_users_cache['timestamp'] < MOVIE_USERS_CACHE_EXPIRY:
+        users_by_movie = movie_users_cache['data']
+    else:
+        # For a single movie, we can fetch just its users
+        users_by_movie = {}
+        if movie.id:
+            user_ids = api_client.get_movie_users(movie.id)
+            if user_ids:
+                user_names = get_user_names(app.client, user_ids)
+                users_by_movie[movie.id] = user_names
 
-    blocks = format_movie_detail(movie, app.client)
+    blocks = format_movie_detail(movie, app.client, users_by_movie)
     respond({"blocks": blocks})
+    
+    end_time = time.time()
+    print(f"Random movie command took {end_time - start_time:.2f} seconds")
 
 
 def is_tmdb_url(url):
@@ -381,6 +416,54 @@ def handle_message_events(event, client):
                 print(f"Error adding middle finger reaction: {e}")
 
 
+# Function to pre-fetch all movie users at once
+def get_all_movie_users(movies, client):
+    """Get all users for a list of movies with efficient caching."""
+    current_time = time.time()
+    
+    # Check if cache is valid
+    if (current_time - movie_users_cache['timestamp'] < MOVIE_USERS_CACHE_EXPIRY and 
+        movie_users_cache['data']):
+        return movie_users_cache['data']
+    
+    print("Prefetching all movie users data...")
+    fetch_start = time.time()
+    
+    result = {}
+    all_user_ids = set()
+    movie_user_map = {}
+    
+    # First, collect all user IDs for all movies in one pass
+    for movie in movies:
+        if movie.id:
+            user_ids = api_client.get_movie_users(movie.id)
+            if user_ids:
+                movie_user_map[movie.id] = user_ids
+                all_user_ids.update(user_ids)
+    
+    fetch_api_time = time.time()
+    print(f"API fetching took {fetch_api_time - fetch_start:.2f} seconds")
+    
+    # Now get user names for all users at once
+    all_user_names = {}
+    if all_user_ids:
+        user_names_list = get_user_names(client, list(all_user_ids))
+        all_user_names = dict(zip(all_user_ids, user_names_list))
+    
+    fetch_names_time = time.time()
+    print(f"User name fetching took {fetch_names_time - fetch_api_time:.2f} seconds")
+    
+    # Map user IDs to names for each movie
+    for movie_id, user_ids in movie_user_map.items():
+        result[movie_id] = [all_user_names.get(user_id, "@unknown") for user_id in user_ids]
+    
+    # Update cache
+    movie_users_cache['data'] = result
+    movie_users_cache['timestamp'] = current_time
+    
+    print(f"Total user data prefetch took {time.time() - fetch_start:.2f} seconds")
+    return result
+
 # Helper function to handle pagination
 def handle_pagination(page, respond):
     """Common handler for pagination."""
@@ -388,8 +471,14 @@ def handle_pagination(page, respond):
     movies = get_all_movies()
     page_size = 25
     
-    # Format the movie list
-    movie_list = format_movie_list(movies, app.client, page, page_size)
+    # Pre-fetch all user data for these movies
+    users_by_movie = get_all_movie_users(movies, app.client)
+    print(f"User data prefetch completed in {time.time() - start_time:.2f} seconds")
+    
+    # Format the movie list with pre-fetched user data
+    format_start = time.time()
+    movie_list = format_movie_list(movies, app.client, page, page_size, users_by_movie)
+    print(f"Formatting took {time.time() - format_start:.2f} seconds")
     
     total_pages = (len(movies) + page_size - 1) // page_size
     
