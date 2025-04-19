@@ -1,3 +1,9 @@
+"""
+CLI utility functions for Movie Club bot administration and testing.
+Provides functionality for searching movies, adding them from URLs,
+and interacting with the Movie Club API.
+"""
+
 from src.tmdb_api import (
     search_movies, get_movie_details, get_popular_movies, 
     save_to_json, get_movie_by_url
@@ -124,8 +130,8 @@ def get_movie_from_url():
         print("Couldn't retrieve movie details.")
 
 def main():
-    print("Welcome to Movie Club!")
-    print("----------------------")
+    print("Welcome to Movie Club CLI!")
+    print("-------------------------")
     
     while True:
         print("\nOptions:")
@@ -172,7 +178,6 @@ def main():
             break
         else:
             print("Invalid choice. Please try again.")
-
 
 if __name__ == "__main__":
     main()

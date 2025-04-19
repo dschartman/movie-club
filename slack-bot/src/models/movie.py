@@ -1,3 +1,6 @@
+from pydantic import BaseModel, Field
+from typing import List, Dict, Any, Optional
+
 class Movie:
     """
     Movie model class representing a movie from TMDB.
@@ -8,16 +11,27 @@ class Movie:
         """Initialize a movie object from TMDB API data."""
         if tmdb_data:
             self.id = tmdb_data.get('id')
-            self.title = tmdb_data.get('title')
-            self.original_title = tmdb_data.get('original_title')
-            self.overview = tmdb_data.get('overview')
-            self.release_date = tmdb_data.get('release_date')
+            self.title = tmdb_data.get('title', "")
+            self.original_title = tmdb_data.get('original_title', "")
+            self.overview = tmdb_data.get('overview', "")
+            self.release_date = tmdb_data.get('release_date', "")
             self.poster_path = tmdb_data.get('poster_path')
             self.backdrop_path = tmdb_data.get('backdrop_path')
-            self.popularity = tmdb_data.get('popularity')
-            self.vote_average = tmdb_data.get('vote_average')
-            self.vote_count = tmdb_data.get('vote_count')
-            self.genres = [genre.get('name') for genre in tmdb_data.get('genres', [])]
+            self.popularity = tmdb_data.get('popularity', 0.0)
+            self.vote_average = tmdb_data.get('vote_average', 0.0)
+            self.vote_count = tmdb_data.get('vote_count', 0)
+            
+            # Handle genres as either objects or strings
+            if tmdb_data.get('genres'):
+                # If genres are objects with 'name' field
+                if isinstance(tmdb_data.get('genres')[0], dict) and 'name' in tmdb_data.get('genres')[0]:
+                    self.genres = [genre.get('name') for genre in tmdb_data.get('genres', [])]
+                else:
+                    # If genres are already strings
+                    self.genres = tmdb_data.get('genres', [])
+            else:
+                self.genres = []
+                
             self.runtime = tmdb_data.get('runtime')
         else:
             self.id = None

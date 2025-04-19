@@ -13,7 +13,6 @@ RUN uv sync
 
 # Copy source code
 COPY slack-bot/src/ src/
-COPY slack-bot/main.py .
 COPY slack-bot/docker_entrypoint.py .
 
 # Set environment variable for Python to run unbuffered
