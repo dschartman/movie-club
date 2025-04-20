@@ -161,6 +161,142 @@ class HelpCommand(SlackCommand):
         
         respond(help_text)
 
+
+@register_command
+class PickMovieCommand(MovieCommand):
+    """Command to create a poll with random movies."""
+    
+    def __init__(self):
+        super().__init__(
+            name="pickmovie",
+            description="Creates a poll with random movies for users to vote on",
+            examples=[
+                "/pickmovie",
+                "/pickmovie 5"  # Specify number of movies
+            ]
+        )
+    
+    async def execute(self, ack: Callable, respond: Callable, command: Dict[str, Any], **kwargs) -> None:
+        """Execute the command to create a movie poll."""
+        # Acknowledge command request
+        ack()
+        
+        # Get the Slack app client
+        app_client = kwargs.get("app_client")
+        if not app_client:
+            respond("Error: Slack client not available")
+            return
+            
+        # Parse command text for number of movies
+        command_text = command.get("text", "").strip()
+        try:
+            num_movies = int(command_text) if command_text else 3  # Default to 3 movies
+            # Set reasonable limits
+            num_movies = max(2, min(num_movies, 8))  # Between 2 and 8 movies
+        except ValueError:
+            num_movies = 3  # Default if parsing fails
+        
+        # Import our pool function and random
+        from src.handlers.cache_management import get_random_movie_pool
+        import random
+        
+        # Get pool of random movies (much faster than individual API calls)
+        movie_pool = get_random_movie_pool(self.api_client)
+        
+        if not movie_pool or len(movie_pool) < num_movies:
+            respond("Could not retrieve enough movies to create a poll.")
+            return
+        
+        # Shuffle and select the requested number of movies
+        random.shuffle(movie_pool)
+        movies = movie_pool[:num_movies]
+            
+        # Create poll message blocks
+        blocks = [
+            {
+                "type": "header",
+                "text": {
+                    "type": "plain_text",
+                    "text": f"Movie Poll: Vote for our next movie! 🍿",
+                    "emoji": True
+                }
+            },
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": "Click a button below to vote for which movie we should watch next. *Click again to remove your vote.*"
+                }
+            },
+            {"type": "divider"}
+        ]
+        
+        # Create movie info sections
+        for i, movie in enumerate(movies):
+            # Add movie details section
+            release_year = movie.release_date[:4] if hasattr(movie, 'release_date') and movie.release_date else 'N/A'
+            rating = f"{movie.vote_average:.1f}" if hasattr(movie, 'vote_average') else 'N/A'
+            
+            movie_text = (
+                f"*{i+1}. {movie.title}* ({release_year})\n"
+                f"Rating: {rating}/10\n"
+                f"<https://www.themoviedb.org/movie/{movie.id}|View on TMDB>"
+            )
+            
+            movie_block = {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": movie_text
+                }
+            }
+            
+            # Add movie poster if available
+            if hasattr(movie, 'get_poster_url'):
+                poster_url = movie.get_poster_url("w92")
+                if poster_url:
+                    movie_block["accessory"] = {
+                        "type": "image",
+                        "image_url": poster_url,
+                        "alt_text": movie.title
+                    }
+            
+            blocks.append(movie_block)
+        
+        # Add voting buttons
+        actions_block = {
+            "type": "actions",
+            "block_id": "movie_poll_votes",
+            "elements": []
+        }
+        
+        for i, movie in enumerate(movies):
+            actions_block["elements"].append({
+                "type": "button",
+                "text": {
+                    "type": "plain_text",
+                    "text": f"Vote #{i+1}",
+                    "emoji": True
+                },
+                "value": f"vote_{movie.id}",
+                "action_id": f"vote_movie_{movie.id}"
+            })
+        
+        blocks.append({"type": "divider"})
+        blocks.append(actions_block)
+        
+        # Post the poll
+        try:
+            result = app_client.chat_postMessage(
+                channel=command["channel_id"],
+                blocks=blocks,
+                text="Vote for the next movie to watch!"
+            )
+            print(f"Posted movie poll: {result.get('ts')}")
+        except Exception as e:
+            respond(f"Error creating poll: {str(e)}")
+            print(f"Error creating poll: {e}")
+
 @register_command
 class GenresCommand(MovieCommand):
     """Command to list movie genres."""

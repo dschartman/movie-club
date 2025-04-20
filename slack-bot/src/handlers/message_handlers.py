@@ -68,7 +68,26 @@ def handle_message_event(event, client, api_client, slack_channel_id):
         if is_tmdb_url(url):
             # Check if it hasn't been processed yet
             if url not in processed_urls:
-                movie_data = process_tmdb_url(url, user_id, api_client)  # Pass the user_id
+                # First check if this URL already has a movie_camera reaction (another instance might have processed it)
+                try:
+                    reactions_response = client.reactions_get(
+                        channel=channel_id,
+                        timestamp=event.get("ts")
+                    )
+                    
+                    existing_reactions = []
+                    if 'message' in reactions_response and 'reactions' in reactions_response['message']:
+                        existing_reactions = [r['name'] for r in reactions_response['message']['reactions']]
+                    
+                    # If already processed by another instance, skip processing
+                    if 'movie_camera' in existing_reactions:
+                        processed_urls.add(url)
+                        save_processed_url(url)
+                        continue
+                except Exception as e:
+                    print(f"Error checking reactions: {e}")
+                
+                movie_data = process_tmdb_url(url, user_id, api_client)
 
                 if movie_data:
                     # Add to processed set and save to file
@@ -82,18 +101,38 @@ def handle_message_event(event, client, api_client, slack_channel_id):
                             timestamp=event.get("ts"),
                             name="movie_camera",  # Movie camera emoji
                         )
-                    except Exception as e:
-                        print(f"Error adding movie reaction: {e}")
+                    except SlackApiError as e:
+                        if "already_reacted" in str(e):
+                            # Already reacted, ignore this error
+                            pass
+                        else:
+                            print(f"Error adding movie reaction: {e}")
         else:
-            # Not a TMDB URL, add middle finger reaction
+            # Not a TMDB URL, add middle finger reaction - but check first
             try:
-                client.reactions_add(
+                # Check if the reaction is already there
+                reactions_response = client.reactions_get(
                     channel=channel_id,
-                    timestamp=event.get("ts"),
-                    name="middle_finger",  # Middle finger emoji
+                    timestamp=event.get("ts")
                 )
-            except Exception as e:
-                print(f"Error adding middle finger reaction: {e}")
+                
+                existing_reactions = []
+                if 'message' in reactions_response and 'reactions' in reactions_response['message']:
+                    existing_reactions = [r['name'] for r in reactions_response['message']['reactions']]
+                
+                # Only add if not already there
+                if 'middle_finger' not in existing_reactions:
+                    client.reactions_add(
+                        channel=channel_id,
+                        timestamp=event.get("ts"),
+                        name="middle_finger",  # Middle finger emoji
+                    )
+            except SlackApiError as e:
+                if "already_reacted" in str(e):
+                    # Already reacted, ignore this error
+                    pass
+                else:
+                    print(f"Error adding reaction: {e}")
 
 def initialize():
     """Initialize the message handlers module."""

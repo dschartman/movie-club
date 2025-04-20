@@ -12,6 +12,9 @@ movie_cache = TTLCache(maxsize=100, ttl=120)
 # Cache for movie users data - TTL 5 minutes
 movie_users_cache = TTLCache(maxsize=100, ttl=300)
 
+# Cache for random movie pool - TTL 30 minutes
+random_movie_pool_cache = TTLCache(maxsize=1, ttl=1800)
+
 def ttl_cached(cache_obj, key_func=None):
     """
     Decorator that uses a specified TTLCache object for caching
@@ -137,3 +140,54 @@ def get_cached_movies(api_client):
     # This function will only be called on cache miss
     movies_dict = api_client.get_all_movies()
     return list(movies_dict.values())
+
+def get_random_movie_pool(api_client, min_pool_size=20):
+    """
+    Get a pool of random movies for quick access.
+    This dramatically reduces API calls when creating polls.
+    """
+    # Check if we already have a cached pool
+    if "movie_pool" in random_movie_pool_cache:
+        pool = random_movie_pool_cache["movie_pool"]
+        # Return the pool if it's still big enough
+        if len(pool) >= min_pool_size:
+            return pool
+    
+    print("Building random movie pool cache...")
+    
+    # Option 1: If all movies is a reasonable size, get them all and sample locally
+    try:
+        all_movies = get_cached_movies(api_client)  # Use existing cache
+        
+        if all_movies and len(all_movies) >= min_pool_size:
+            import random
+            # Create a pool of max 50 movies or all movies if less than 50
+            pool_size = min(50, len(all_movies))
+            pool = random.sample(all_movies, pool_size)
+            random_movie_pool_cache["movie_pool"] = pool
+            print(f"Built random movie pool with {len(pool)} movies from all movies cache")
+            return pool
+    except Exception as e:
+        print(f"Error building pool from all movies: {e}")
+    
+    # Option 2: Fallback to fetching individual random movies
+    movies = []
+    ids_seen = set()
+    max_attempts = min_pool_size * 2
+    attempts = 0
+    
+    while len(movies) < min_pool_size and attempts < max_attempts:
+        attempts += 1
+        try:
+            movie = api_client.get_random_movie()
+            if movie and movie.id not in ids_seen:
+                movies.append(movie)
+                ids_seen.add(movie.id)
+        except Exception as e:
+            print(f"Error fetching random movie: {e}")
+    
+    if movies:
+        random_movie_pool_cache["movie_pool"] = movies
+        print(f"Built random movie pool with {len(movies)} movies via API calls")
+    
+    return movies

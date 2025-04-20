@@ -1,9 +1,10 @@
 import os
 import importlib
 import inspect
+import re
 from slack_bolt import App
 from slack_bolt.adapter.socket_mode import SocketModeHandler
-from src.config import SLACK_BOT_TOKEN, SLACK_APP_TOKEN, SLACK_CHANNEL_ID
+from src.config import SLACK_BOT_TOKEN, SLACK_APP_TOKEN, SLACK_CHANNEL_ID, BOT_ENVIRONMENT, ENV_PREFIX
 from src.api_client import ApiClient
 from src.models.movie import Movie
 from src.handlers.message_handlers import handle_message_event, initialize as init_message_handlers
@@ -45,6 +46,17 @@ for command_name, command_obj in registry.get_all_commands().items():
                 
             logger.info(f"Executing command: {cmd.name} in channel: {command_channel}")
             
+            # Wrap the respond function to add environment prefix
+            original_respond = respond
+            def prefixed_respond(text_or_blocks, **kwargs):
+                if isinstance(text_or_blocks, str):
+                    # Add prefix to string responses
+                    text_or_blocks = f"{ENV_PREFIX}{text_or_blocks}"
+                elif isinstance(text_or_blocks, dict) and "text" in text_or_blocks:
+                    # Add prefix to block text
+                    text_or_blocks["text"] = f"{ENV_PREFIX}{text_or_blocks['text']}"
+                return original_respond(text_or_blocks, **kwargs)
+            
             # Execute the command asynchronously using a thread-safe approach
             import asyncio
             
@@ -53,11 +65,11 @@ for command_name, command_obj in registry.get_all_commands().items():
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 try:
-                    # Run the command in the new loop
+                    # Run the command in the new loop with prefixed respond
                     loop.run_until_complete(
                         cmd.execute(
                             ack=lambda: None,  # We already acked
-                            respond=respond,
+                            respond=prefixed_respond,
                             command=command,
                             app_client=app.client
                         )
@@ -133,6 +145,108 @@ def prev_page(ack, body, respond):
         lambda m, client: users_by_movie
     )
 
+# Add action handler for movie poll votes
+@app.action(re.compile("^vote_movie_"))
+def handle_movie_vote(ack, body, client):
+    """Handle movie poll votes."""
+    ack()
+    
+    # Check if action was triggered in the configured channel
+    action_channel = body.get("channel", {}).get("id")
+    if action_channel != SLACK_CHANNEL_ID:
+        client.chat_postEphemeral(
+            channel=action_channel,
+            user=body["user"]["id"],
+            text="⚠️ This action is only available in the designated movie channel."
+        )
+        return
+    
+    # Extract movie ID from action
+    action_id = body["actions"][0]["action_id"]
+    movie_id = action_id.replace("vote_movie_", "")
+    
+    # Get user info
+    user_id = body["user"]["id"]
+    
+    try:
+        # Get user name
+        user_info = client.users_info(user=user_id)
+        user_name = user_info["user"]["real_name"] or user_info["user"]["name"]
+    except:
+        user_name = f"<@{user_id}>"
+    
+    # Update the message to show vote
+    blocks = body["message"]["blocks"]
+    
+    # Find the actions block and update it
+    for block in blocks:
+        if block.get("block_id") == "movie_poll_votes":
+            for button in block.get("elements", []):
+                if button.get("action_id") == action_id:
+                    # Update the button text to show votes
+                    current_text = button["text"]["text"]
+                    
+                    # Check if already voted - if so, REMOVE the vote
+                    if "(" in current_text and user_name in current_text:
+                        # User already voted, so remove their vote
+                        vote_text = current_text.split("(")[0].strip()
+                        voters_text = current_text.split("(")[1].replace(")", "")
+                        
+                        # Split the voters by comma and handle both single and multiple voter cases
+                        voters = [v.strip() for v in voters_text.split(",")]
+                        
+                        # Remove this user from voters
+                        if user_name in voters:
+                            voters.remove(user_name)
+                        
+                        # If there are still voters, update the text
+                        if voters:
+                            voters_text = ", ".join(voters)
+                            button["text"]["text"] = f"{vote_text} ({voters_text})"
+                        else:
+                            # No voters left, remove the parenthesis part
+                            button["text"]["text"] = vote_text
+                            
+                        # Post ephemeral confirmation message just to the user
+                        client.chat_postEphemeral(
+                            channel=action_channel,
+                            user=user_id,
+                            text=f"You removed your vote from option {vote_text}"
+                        )
+                    elif "(" in current_text:
+                        # Add user to existing votes
+                        vote_text = current_text.split("(")[0].strip()
+                        voters = current_text.split("(")[1].replace(")", "")
+                        button["text"]["text"] = f"{vote_text} ({voters}, {user_name})"
+                        
+                        # Post ephemeral confirmation message just to the user
+                        client.chat_postEphemeral(
+                            channel=action_channel,
+                            user=user_id,
+                            text=f"You voted for {vote_text}"
+                        )
+                    else:
+                        # First vote
+                        button["text"]["text"] = f"{current_text} ({user_name})"
+                        
+                        # Post ephemeral confirmation message just to the user
+                        client.chat_postEphemeral(
+                            channel=action_channel,
+                            user=user_id,
+                            text=f"You voted for {current_text}"
+                        )
+    
+    # Update the message
+    try:
+        client.chat_update(
+            channel=action_channel,
+            ts=body["message"]["ts"],
+            blocks=blocks,
+            text="Vote for the next movie to watch!"
+        )
+    except Exception as e:
+        print(f"Error updating poll vote: {e}")
+
 def start_slack_bot():
     """Start the Slack bot in Socket Mode."""
     # Check if required env variables are set
@@ -145,6 +259,7 @@ def start_slack_bot():
     init_message_handlers()
 
     # Log available commands
+    print(f"Bot running in {BOT_ENVIRONMENT.upper()} environment")
     print("Registered commands:")
     for name, cmd in registry.get_all_commands().items():
         print(f"  /{name}: {cmd.description}")
@@ -157,7 +272,8 @@ def start_slack_bot():
     except Exception as e:
         print(f"Warning: Could not fetch channel name: {e}")
 
-    print(f"Starting Slack bot, monitoring channel: #{channel_name} (ID: {SLACK_CHANNEL_ID})")
+    print(f"Starting Slack bot in {BOT_ENVIRONMENT.upper()} environment")
+    print(f"Monitoring channel: #{channel_name} (ID: {SLACK_CHANNEL_ID})")
     print(f"Commands and actions will ONLY work in this channel")
     print(f"Connected to Movie API at: {api_client.base_url}")
     print("Press Ctrl+C to stop the bot")
